@@ -9,7 +9,7 @@ export function BottomNav() {
       <NavButton href="/dashboard/grocery" label="Grocery" icon={<ShoppingCart className="h-6 w-6" />} />
       <NavButton href="/" label="Home" icon={<HomeIcon className="h-6 w-6" />} />
       <NavButton href="/dashboard/edit" label="Edit" icon={<Pencil className="h-6 w-6" />} />
-      <NavButton href="/dashboard/learn" label="Learn" icon={<Info className="h-6 w-6" />} />
+      <NavButton href="/learn" label="Learn" icon={<Info className="h-6 w-6" />} />
     </nav>
   );
 }

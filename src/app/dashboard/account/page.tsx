@@ -46,7 +46,7 @@ export default function AccountPage() {
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                placeholder="Your username"
+                placeholder="Caleb Kawano"
                 value={formData.username}
                 onChange={handleChange}
               />

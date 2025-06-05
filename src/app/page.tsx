@@ -15,11 +15,11 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-3">
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-semibold">Quick Meals</h2>
             <p className="text-muted-foreground">
-              Get instant meal suggestions based on your preferences and dietary needs
+              Instant meal suggestions based on preferences & needs
             </p>
             <Button asChild className="w-full">
               <Link href="/dashboard">Get Started</Link>
