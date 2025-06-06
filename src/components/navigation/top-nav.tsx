@@ -14,12 +14,12 @@ export function TopNav() {
   };
 
   return (
-    <nav className="fixed top-0 inset-x-0 bg-white/90 dark:bg-neutral-900/90 backdrop-blur border-b border-gray-200 dark:border-neutral-700 py-2 px-4 z-50">
-      <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <Link href="/" className="text-xl font-bold">
-          pAIr
-        </Link>
-        <div className="flex items-center gap-4">
+    <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
+      <div className="container h-full flex items-center justify-between">
+        <a href="/" className="font-semibold text-lg pl-6">
+          p<span className="text-primary">AI</span>r
+        </a>
+        <div className="flex items-center gap-1 pr-6">
           <Button size="icon" variant="ghost" onClick={toggleTheme} aria-label="toggle theme">
             {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
@@ -29,6 +29,6 @@ export function TopNav() {
           </Link>
         </div>
       </div>
-    </nav>
+    </header>
   );
 } 

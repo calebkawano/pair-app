@@ -22,7 +22,7 @@ export default function Home() {
               Instant meal suggestions based on preferences & needs
             </p>
             <Button asChild className="w-full">
-              <Link href="/dashboard">Get Started</Link>
+              <Link href="/dashboard/meals">Get Started</Link>
             </Button>
           </Card>
 

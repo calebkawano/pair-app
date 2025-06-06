@@ -19,11 +19,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <TopNav />
-        <div className="min-h-screen bg-background pb-16 pt-14">
-          {children}
+        <div className="flex flex-col min-h-screen relative">
+          <TopNav />
+          <div className="flex-1 pt-14 pb-16">
+            {children}
+          </div>
+          <BottomNav />
         </div>
-        <BottomNav />
       </body>
     </html>
   );
