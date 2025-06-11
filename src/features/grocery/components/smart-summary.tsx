@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
 import { SmartSummary } from "@/lib/dummy-data";
+import { Card } from "@/ui/card";
 import { Clock, DollarSign, Store } from "lucide-react";
 
 interface SmartSummaryProps {

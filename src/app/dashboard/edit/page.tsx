@@ -1,20 +1,20 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/ui/button";
+import { Card } from "@/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/dialog";
+import { Input } from "@/ui/input";
+import { Label } from "@/ui/label";
+import { Progress } from "@/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
+import { Textarea } from "@/ui/textarea";
 import { Check, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

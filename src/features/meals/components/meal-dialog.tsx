@@ -1,15 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import { DietaryTag, Meal, dietaryTags } from "@/lib/dummy-data";
+import { Button } from "@/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/dialog";
 import { Check, Info, Star, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";

@@ -1,7 +1,7 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import { GroceryItem } from "@/lib/dummy-data";
+import { Card } from "@/ui/card";
 import { Check, Store } from "lucide-react";
 
 interface GroceryListProps {

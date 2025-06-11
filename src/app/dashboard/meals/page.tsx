@@ -1,8 +1,8 @@
 "use client";
 
-import { MealDialog } from "@/components/meals/meal-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MealDialog } from "@/features/meals/components/meal-dialog";
 import { dummyMeals, quickMealCategories } from "@/lib/dummy-data";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { motion } from "framer-motion";
 import { Star } from "lucide-react";
 import { useState } from "react";
@@ -14,7 +14,7 @@ export default function MealsPage() {
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
 
   const selectedMeal = selectedCategory
-    ? dummyMeals.find((meal) => meal.category === selectedCategory)
+    ? dummyMeals.find((meal) => meal.category === selectedCategory) ?? null
     : null;
 
   const handleNext = () => {

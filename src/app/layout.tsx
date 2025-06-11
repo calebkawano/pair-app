@@ -1,5 +1,6 @@
 import { BottomNav } from "@/components/navigation/bottom-nav";
 import { TopNav } from "@/components/navigation/top-nav";
+import { ToastProvider } from "@/providers/toast-provider";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -26,6 +27,7 @@ export default function RootLayout({
           </div>
           <BottomNav />
         </div>
+        <ToastProvider />
       </body>
     </html>
   );

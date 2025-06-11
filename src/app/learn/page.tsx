@@ -1,7 +1,7 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Card } from "@/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/ui/collapsible";
 import { useState } from "react";
 
 export default function LearnPage() {

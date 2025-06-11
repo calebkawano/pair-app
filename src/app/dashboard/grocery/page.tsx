@@ -1,10 +1,10 @@
 "use client";
 
-import { GroceryList } from "@/components/grocery/grocery-list";
-import { SmartSummaryCard } from "@/components/grocery/smart-summary";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { GroceryList } from "@/features/grocery/components/grocery-list";
+import { SmartSummaryCard } from "@/features/grocery/components/smart-summary";
 import { dummyGroceryList, dummySmartSummary } from "@/lib/dummy-data";
+import { Button } from "@/ui/button";
+import { Card } from "@/ui/card";
 import { Plus, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
