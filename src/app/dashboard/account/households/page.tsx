@@ -37,6 +37,22 @@ interface Household {
   members: Member[];
 }
 
+type SupabaseHouseholdMember = {
+  profiles: {
+    id: string;
+    full_name: string;
+    email: string;
+  };
+  dietary_preferences: DietaryPreferences;
+  allergies?: string[];
+};
+
+interface SupabaseHouseholdRow {
+  id: string;
+  name: string;
+  household_members: SupabaseHouseholdMember[];
+}
+
 export default function HouseholdsPage() {
   const [households, setHouseholds] = useState<Household[]>([]);
   const [newHouseholdName, setNewHouseholdName] = useState('');
@@ -73,7 +89,7 @@ export default function HouseholdsPage() {
 
       if (householdsError) throw householdsError;
 
-      const formattedHouseholds = householdsData.map(household => ({
+      const formattedHouseholds = (householdsData as unknown as SupabaseHouseholdRow[]).map((household) => ({
         id: household.id,
         name: household.name,
         members: household.household_members.map((member) => ({

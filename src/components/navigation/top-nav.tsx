@@ -2,13 +2,14 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
-import { Moon, Sun, User } from "lucide-react";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { Moon, Sun, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export function TopNav() {
   const [dark, setDark] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -54,12 +55,12 @@ export function TopNav() {
           </Button>
           {user ? (
             <Button variant="ghost" size="sm" onClick={handleLogout} className="flex items-center gap-2">
-              <User className="h-5 w-5" />
+              <UserIcon className="h-5 w-5" />
               Logout
             </Button>
           ) : (
             <Link href="/login" className="flex items-center gap-2 text-sm hover:text-primary">
-              <User className="h-5 w-5" />
+              <UserIcon className="h-5 w-5" />
               Login
             </Link>
           )}

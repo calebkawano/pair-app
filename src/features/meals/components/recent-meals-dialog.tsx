@@ -29,7 +29,7 @@ export function RecentMealsDialog({
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
 
   const selectedMeal = selectedMealId 
-    ? dummyMeals.find(meal => meal.id === selectedMealId) 
+    ? dummyMeals.find(meal => meal.id === selectedMealId) ?? null
     : null;
 
   const handleMealClick = (mealId: string) => {

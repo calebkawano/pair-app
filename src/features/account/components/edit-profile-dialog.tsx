@@ -63,6 +63,7 @@ export function EditProfileDialog({ isOpen, onClose, user, onSaveSuccess }: Edit
   }, [formData, originalData]);
 
   const loadUserProfile = async () => {
+    if (!user) return;
     try {
       setLoading(true);
 
@@ -70,7 +71,7 @@ export function EditProfileDialog({ isOpen, onClose, user, onSaveSuccess }: Edit
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', user!.id)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -124,7 +125,7 @@ export function EditProfileDialog({ isOpen, onClose, user, onSaveSuccess }: Edit
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
-          id: user.id,
+          id: user!.id,
           email: formData.email,
           full_name: formData.full_name,
           age: formData.age ? parseInt(formData.age) : null,
