@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 
 export function TopNav() {
   const [dark, setDark] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const supabase = createClient();
 
   useEffect(() => {

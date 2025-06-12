@@ -40,15 +40,15 @@ class WalmartAPI {
     }
   }
 
-  private async makeRequest(endpoint: string, params: any = {}, useMockData: boolean = true) {
-    const token = await this.getAccessToken();
+  private async makeRequest(endpoint: string, params: Record<string, unknown> = {}, useMockData: boolean = true) {
+    await this.getAccessToken();
     try {
       // Add /dataset to the endpoint if using mock data
       const mockEndpoint = useMockData ? `${endpoint}/dataset` : endpoint;
       
       const response = await axios.get(`${this.baseURL}${mockEndpoint}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${this.token}`,
           'WM_QOS.CLIENT_ID': this.clientId,
           'WM_SVC.NAME': 'Walmart Marketplace',
           'Accept': 'application/json',
@@ -80,7 +80,7 @@ class WalmartAPI {
   // Test the sandbox connection
   async testConnection() {
     try {
-      const token = await this.getAccessToken();
+      await this.getAccessToken();
       return {
         success: true,
         message: 'Successfully connected to Walmart Sandbox API'

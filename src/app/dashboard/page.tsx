@@ -5,16 +5,22 @@ import { dummyMeals } from "@/lib/dummy-data";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
+import type { User } from "@supabase/supabase-js";
 import { Clock, Edit, Settings, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+interface Profile {
+  full_name?: string | null;
+  [key: string]: unknown;
+}
+
 export default function DashboardHome() {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [recentMeals, setRecentMeals] = useState<string[]>(['pasta-carbonara', 'chicken-stir-fry']); // Mock data
-  const [shoppingListCount, setShoppingListCount] = useState(7); // Mock data  
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [recentMeals] = useState<string[]>(['pasta-carbonara', 'chicken-stir-fry']); // Mock data
+  const [shoppingListCount] = useState(7); // Mock data  
   const [showRecentMeals, setShowRecentMeals] = useState(false);
   const supabase = createClient();
   const router = useRouter();

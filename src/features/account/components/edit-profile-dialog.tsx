@@ -12,6 +12,7 @@ import {
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { Switch } from "@/ui/switch";
+import type { User } from "@supabase/supabase-js";
 import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -20,7 +21,7 @@ import { toast } from "sonner";
 interface EditProfileDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  user: any;
+  user: User | null;
   onSaveSuccess: () => void;
 }
 
@@ -95,7 +96,7 @@ export function EditProfileDialog({ isOpen, onClose, user, onSaveSuccess }: Edit
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: keyof typeof formData, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -106,7 +107,7 @@ export function EditProfileDialog({ isOpen, onClose, user, onSaveSuccess }: Edit
     setSaving(true);
     try {
       // Update auth user email and metadata if changed
-      const userUpdates: any = {};
+      const userUpdates: Record<string, unknown> = {};
       if (formData.email !== originalData.email) {
         userUpdates.email = formData.email;
       }

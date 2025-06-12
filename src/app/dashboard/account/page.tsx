@@ -4,13 +4,14 @@ import { EditProfileDialog } from "@/features/account/components/edit-profile-di
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
+import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function AccountPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const router = useRouter();

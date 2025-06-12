@@ -1,12 +1,18 @@
 'use client'
 
-import { createList, deleteList, getLists } from '@/lib/supabase/actions'
-import { createClient } from '@/lib/supabase/client'
-import { useState } from 'react'
+import { createList, deleteList, getLists } from '@/lib/supabase/actions';
+import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState } from 'react';
+
+interface ShoppingList {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
 
 export default function ShoppingLists() {
   const [newListName, setNewListName] = useState('')
-  const [lists, setLists] = useState<any[]>([])
+  const [lists, setLists] = useState<ShoppingList[]>([])
   const supabase = createClient()
 
   // Client-side operation: Handle user logout
@@ -65,6 +71,11 @@ export default function ShoppingLists() {
       alert('Failed to delete list')
     }
   }
+
+  useEffect(() => {
+    loadLists()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="p-4">

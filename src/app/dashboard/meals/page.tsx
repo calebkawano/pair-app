@@ -9,7 +9,6 @@ import { useState } from "react";
 
 export default function MealsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [currentMeal, setCurrentMeal] = useState<number>(0);
   const [previousMeals, setPreviousMeals] = useState<string[]>([]);
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
 

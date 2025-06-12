@@ -2,11 +2,12 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/ui/button';
+import type { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function AuthTest() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();

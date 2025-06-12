@@ -27,7 +27,7 @@ export async function getLists(userId: string) {
   return data;
 }
 
-export async function updateList(listId: string, updates: any) {
+export async function updateList(listId: string, updates: Record<string, unknown>) {
   const { data, error } = await supabase
     .from('shopping_lists')
     .update(updates)

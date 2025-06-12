@@ -11,7 +11,7 @@ import { useState } from "react";
 
 export default function GroceryPage() {
   // This will be replaced with real state management later
-  const [hasGroceryList, setHasGroceryList] = useState(true); // Set to true to see the active state
+  const [hasGroceryList] = useState(true); // Set to true to see the active state
   const [groceryItems, setGroceryItems] = useState(dummyGroceryList);
 
   const toggleItem = (id: string) => {

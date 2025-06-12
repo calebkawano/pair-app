@@ -18,11 +18,16 @@ import { Label } from "@/ui/label";
 import { Textarea } from "@/ui/textarea";
 import { useEffect, useState } from 'react';
 
+type DietaryPreferences = {
+  notes?: string;
+  [key: string]: unknown;
+};
+
 interface Member {
   id: string;
   full_name: string;
   email: string;
-  dietary_preferences: any;
+  dietary_preferences: DietaryPreferences;
   allergies: string[];
 }
 
@@ -35,7 +40,6 @@ interface Household {
 export default function HouseholdsPage() {
   const [households, setHouseholds] = useState<Household[]>([]);
   const [newHouseholdName, setNewHouseholdName] = useState('');
-  const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -72,7 +76,7 @@ export default function HouseholdsPage() {
       const formattedHouseholds = householdsData.map(household => ({
         id: household.id,
         name: household.name,
-        members: household.household_members.map((member: any) => ({
+        members: household.household_members.map((member) => ({
           id: member.profiles.id,
           full_name: member.profiles.full_name,
           email: member.profiles.email,
@@ -127,7 +131,7 @@ export default function HouseholdsPage() {
   const updateMemberPreferences = async (
     householdId: string,
     memberId: string,
-    preferences: any,
+    preferences: DietaryPreferences,
     allergies: string[]
   ) => {
     try {
