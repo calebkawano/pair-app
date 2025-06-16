@@ -1,14 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies as nextCookies } from 'next/headers';
 
-export const createClient = () => {
-  const cookieStore = cookies()
-  // Minimal typing interface for cookies store
-  interface CookieStore {
-    get: (name: string) => { value: string } | undefined;
-    set: (data: { name: string; value: string; path?: string; maxAge?: number; expires?: Date; }) => void;
-  }
-  const store = cookieStore as unknown as CookieStore;
+export async function createClient() {
+  const cookieStore = await nextCookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,23 +10,15 @@ export const createClient = () => {
     {
       cookies: {
         get(name: string) {
-          return store.get(name)?.value
+          return cookieStore.get(name)?.value || null;
         },
         set(name: string, value: string, options: CookieOptions) {
-          try {
-            store.set({ name, value, ...options })
-          } catch {
-            // Handle cookie errors
-          }
+          cookieStore.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
-          try {
-            store.set({ name, value: '', ...options })
-          } catch {
-            // Handle cookie errors
-          }
+          cookieStore.set({ name, value: '', ...options, maxAge: 0 });
         },
       },
     }
-  )
+  );
 } 
