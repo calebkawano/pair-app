@@ -86,4 +86,34 @@ export async function deleteList(listId: string) {
     .eq('id', listId)
 
   if (error) throw error
+}
+
+export async function createAIFoodRequests(userId: string, items: any[]) {
+  const supabase = await createClient();
+  
+  // Transform AI suggestions into food requests
+  const foodRequests = items.map(item => ({
+    user_id: userId,
+    item_name: item.name,
+    item_description: `${item.cooking_versatility}\n\nStorage: ${item.storage_tips}\n\nNutrition: ${item.nutritional_highlights}`,
+    quantity: item.quantity,
+    unit: item.unit,
+    section: item.category,
+    priority: 'normal',
+    status: 'pending',
+    requested_by: userId,
+    created_at: new Date().toISOString()
+  }));
+
+  const { data, error } = await supabase
+    .from('food_requests')
+    .insert(foodRequests)
+    .select();
+
+  if (error) {
+    console.error('Error creating AI food requests:', error);
+    throw error;
+  }
+
+  return data;
 } 

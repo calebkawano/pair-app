@@ -1,23 +1,15 @@
 "use client";
 
-import { Button } from "@/ui/button";
-import { Card } from "@/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog";
-import { Input } from "@/ui/input";
-import { Label } from "@/ui/label";
-import { Progress } from "@/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { Textarea } from "@/ui/textarea";
-import { Check, Loader2, X } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { getGrocerySuggestions } from '@/lib/api/grocery';
+import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
+import { Input } from '@/ui/input';
+import { Label } from '@/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select';
+import { Textarea } from '@/ui/textarea';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface FormData {
   dietaryGoal: string;
@@ -32,242 +24,190 @@ interface FormData {
 
 export default function EditPage() {
   const router = useRouter();
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentStep, setCurrentStep] = useState("");
-  const [progress, setProgress] = useState(0);
-  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    dietaryGoal: "",
-    favoriteFood: "",
-    cookingTime: "",
-    budget: "",
-    shoppingFrequency: "",
-    favoriteStores: "",
-    avoidStores: "",
-    servingCount: "1",
+    dietaryGoal: '',
+    favoriteFood: '',
+    cookingTime: '',
+    budget: '',
+    shoppingFrequency: '',
+    favoriteStores: '',
+    avoidStores: '',
+    servingCount: '',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [id]: value
-    }));
+    setFormData(prev => ({ ...prev, [id]: value }));
   };
 
   const handleSelectChange = (value: string, field: keyof FormData) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const simulateAIGeneration = async () => {
-    setIsGenerating(true);
-    setProgress(0);
-    
-    // Simulate AI thinking steps
-    const steps = [
-      "Analyzing dietary preferences...",
-      "Calculating optimal meal combinations...",
-      "Finding the best stores in your area...",
-      "Optimizing shopping route...",
-      "Generating smart shopping list..."
-    ];
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-    for (let i = 0; i < steps.length; i++) {
-      setCurrentStep(steps[i]);
-      setProgress((i + 1) * (100 / steps.length));
-      // Simulate AI processing time
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      // Call the AI suggestions API
+      const suggestions = await getGrocerySuggestions(formData);
+      
+      // Store the suggestions in localStorage for the grocery page to use
+      localStorage.setItem('grocerySuggestions', JSON.stringify(suggestions));
+      
+      toast.success('Preferences updated! Redirecting to grocery list...');
+      
+      // Redirect to the grocery page
+      router.push('/dashboard/grocery');
+    } catch (error) {
+      console.error('Error updating preferences:', error);
+      toast.error('Failed to update preferences. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsGenerating(false);
-    setShowCompletionDialog(true);
   };
 
   return (
-    <>
-      <main className="container max-w-4xl mx-auto p-4 space-y-8 pb-20">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Customize Your Shopping Experience</h1>
+    <div className="container max-w-2xl mx-auto p-4">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Grocery Preferences</h1>
           <p className="text-muted-foreground">
-            The more information you provide, the more personalized your shopping list and meal suggestions will be.
-            All fields are optional, but more details help us serve you better.
+            Tell us about your shopping habits and preferences to get personalized grocery suggestions.
           </p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); simulateAIGeneration(); }} className="space-y-6">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="dietaryGoal">Dietary Goal or Restriction</Label>
-                <div className="relative w-full">
-                  <Select 
-                    value={formData.dietaryGoal} 
-                    onValueChange={(value) => handleSelectChange(value, "dietaryGoal")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your dietary goal" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4} align="center">
-                      <SelectItem value="high-protein">High Protein</SelectItem>
-                      <SelectItem value="low-carb">Low Carb</SelectItem>
-                      <SelectItem value="vegan">Vegan</SelectItem>
-                      <SelectItem value="vegetarian">Vegetarian</SelectItem>
-                      <SelectItem value="keto">Keto</SelectItem>
-                      <SelectItem value="mediterranean">Mediterranean</SelectItem>
-                      <SelectItem value="none">No Specific Diet</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="favoriteFood">Favorite Types of Food</Label>
-                <Textarea
-                  id="favoriteFood"
-                  placeholder="E.g., Italian, Asian fusion, Mexican..."
-                  value={formData.favoriteFood}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cookingTime">Cooking Time Preference</Label>
-                <div className="relative w-full">
-                  <Select 
-                    value={formData.cookingTime} 
-                    onValueChange={(value) => handleSelectChange(value, "cookingTime")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select cooking time preference" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4} align="center">
-                      <SelectItem value="minimal">Minimal (15-20 mins)</SelectItem>
-                      <SelectItem value="moderate">Moderate (30-45 mins)</SelectItem>
-                      <SelectItem value="hobby">Cooking is my hobby (1+ hours)</SelectItem>
-                      <SelectItem value="meal-prep">Weekly meal prep</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="budget">Monthly Grocery Budget ($)</Label>
-                <Input
-                  id="budget"
-                  type="number"
-                  placeholder="e.g., 500"
-                  value={formData.budget}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="shoppingFrequency">Shopping Frequency</Label>
-                <div className="relative w-full">
-                  <Select 
-                    value={formData.shoppingFrequency} 
-                    onValueChange={(value) => handleSelectChange(value, "shoppingFrequency")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="How often do you want to shop?" />
-                    </SelectTrigger>
-                    <SelectContent sideOffset={4} align="center">
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="biweekly">Every 2 weeks</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="as-needed">As needed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="favoriteStores">Preferred Stores</Label>
-                <Textarea
-                  id="favoriteStores"
-                  placeholder="List your favorite stores..."
-                  value={formData.favoriteStores}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="avoidStores">Stores to Avoid</Label>
-                <Textarea
-                  id="avoidStores"
-                  placeholder="List stores you'd rather not visit..."
-                  value={formData.avoidStores}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="servingCount">Number of People to Serve</Label>
-                <Input
-                  id="servingCount"
-                  type="number"
-                  min="1"
-                  placeholder="1"
-                  value={formData.servingCount}
-                  onChange={handleInputChange}
-                />
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="p-6 space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="dietaryGoal">Dietary Goal</Label>
+              <Select 
+                value={formData.dietaryGoal} 
+                onValueChange={(value) => handleSelectChange(value, "dietaryGoal")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your dietary goal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="healthy">Healthy Eating</SelectItem>
+                  <SelectItem value="weight-loss">Weight Loss</SelectItem>
+                  <SelectItem value="muscle-gain">Muscle Gain</SelectItem>
+                  <SelectItem value="balanced">Balanced Diet</SelectItem>
+                  <SelectItem value="vegetarian">Vegetarian</SelectItem>
+                  <SelectItem value="vegan">Vegan</SelectItem>
+                  <SelectItem value="keto">Keto</SelectItem>
+                  <SelectItem value="paleo">Paleo</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="mt-6 space-y-4">
-              {isGenerating ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <p className="text-primary">{currentStep}</p>
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                </div>
-              ) : (
-                <Button type="submit" className="w-full">
-                  Create Smart Shopping List
-                </Button>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor="favoriteFood">Favorite Types of Food</Label>
+              <Textarea
+                id="favoriteFood"
+                placeholder="E.g., Italian, Asian fusion, Mexican..."
+                value={formData.favoriteFood}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cookingTime">Cooking Time Preference</Label>
+              <Select 
+                value={formData.cookingTime} 
+                onValueChange={(value) => handleSelectChange(value, "cookingTime")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select cooking time preference" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimal">Minimal (15-20 mins)</SelectItem>
+                  <SelectItem value="moderate">Moderate (30-45 mins)</SelectItem>
+                  <SelectItem value="hobby">Cooking is my hobby (1+ hours)</SelectItem>
+                  <SelectItem value="meal-prep">Weekly meal prep</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="budget">Monthly Grocery Budget ($)</Label>
+              <Input
+                id="budget"
+                type="number"
+                placeholder="e.g., 500"
+                value={formData.budget}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="shoppingFrequency">Shopping Frequency</Label>
+              <Select 
+                value={formData.shoppingFrequency} 
+                onValueChange={(value) => handleSelectChange(value, "shoppingFrequency")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select shopping frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="favoriteStores">Preferred Stores</Label>
+              <Input
+                id="favoriteStores"
+                placeholder="E.g., Walmart, Trader Joe's, Costco"
+                value={formData.favoriteStores}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="avoidStores">Stores to Avoid</Label>
+              <Input
+                id="avoidStores"
+                placeholder="E.g., Whole Foods, Target"
+                value={formData.avoidStores}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="servingCount">Number of People</Label>
+              <Input
+                id="servingCount"
+                type="number"
+                placeholder="How many people are you shopping for?"
+                value={formData.servingCount}
+                onChange={handleInputChange}
+              />
             </div>
           </Card>
-        </form>
-      </main>
 
-      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Shopping List Generated!</DialogTitle>
-            <DialogDescription>
-              Your smart shopping list has been created based on your preferences.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center justify-center py-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Check className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-          <DialogFooter className="flex sm:justify-between">
+          <div className="flex justify-end gap-4">
             <Button
+              type="button"
               variant="outline"
-              onClick={() => setShowCompletionDialog(false)}
-              className="flex items-center gap-2"
+              onClick={() => router.back()}
             >
-              <X className="h-4 w-4" />
-              Stay Here
+              Cancel
             </Button>
             <Button
-              onClick={() => router.push("/dashboard/grocery")}
-              className="flex items-center gap-2"
+              type="submit"
+              disabled={isLoading}
             >
-              View Shopping List
+              {isLoading ? 'Updating...' : 'Update Preferences'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 } 

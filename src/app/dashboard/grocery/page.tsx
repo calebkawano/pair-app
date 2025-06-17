@@ -1,14 +1,16 @@
 "use client";
 
 import { AddItemDialog } from "@/features/grocery/components/add-item-dialog";
+import { SmartShoppingSummary } from "@/features/grocery/components/smart-shopping-summary";
 import { useUser } from "@/hooks/use-user";
+import { supabase } from "@/lib/supabase";
 import { getFoodRequests } from "@/lib/supabase/actions";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import { Checkbox } from "@/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -50,6 +52,43 @@ export default function GroceryListPage() {
   useEffect(() => {
     if (user?.id) {
       loadGroceryList();
+      
+      // Check for AI suggestions
+      const suggestions = localStorage.getItem('grocerySuggestions');
+      if (suggestions) {
+        try {
+          const parsedSuggestions = JSON.parse(suggestions);
+          // Convert AI suggestions to GroceryItem format
+          const newItems = parsedSuggestions.map((suggestion: any, index: number) => ({
+            id: Date.now() + index, // Generate unique IDs
+            item_name: suggestion.name,
+            item_description: `${suggestion.cookingUses.join(', ')}. Storage: ${suggestion.storageTips}. Nutrition: ${suggestion.nutritionalHighlights.join(', ')}`,
+            quantity: suggestion.quantity,
+            unit: suggestion.unit,
+            priority: 'normal',
+            section: suggestion.category,
+            household: {
+              name: 'AI Suggested'
+            },
+            requester: {
+              full_name: 'AI Assistant'
+            },
+            approver: null,
+            is_purchased: false
+          }));
+          
+          // Add AI suggestions to the list
+          setItems(prev => [...prev, ...newItems]);
+          
+          // Clear suggestions from localStorage
+          localStorage.removeItem('grocerySuggestions');
+          
+          toast.success('AI suggestions added to your list!');
+        } catch (error) {
+          console.error('Error processing AI suggestions:', error);
+          toast.error('Failed to process AI suggestions');
+        }
+      }
     }
   }, [user]);
 
@@ -78,6 +117,37 @@ export default function GroceryListPage() {
       }
       return newSet;
     });
+  };
+
+  const handleItemPreference = async (itemId: number, itemName: string, section: string | null, preferenceType: 'accept' | 'reject') => {
+    try {
+      const { error } = await supabase
+        .from('item_preferences')
+        .upsert({
+          user_id: user?.id,
+          item_name: itemName,
+          section,
+          preference_type: preferenceType
+        }, {
+          onConflict: 'user_id,item_name'
+        });
+
+      if (error) throw error;
+
+      // Update UI based on preference
+      if (preferenceType === 'accept') {
+        // Move item to accepted list
+        setPurchasedItems(prev => new Set(prev).add(itemId));
+      } else {
+        // Remove item from list
+        setItems(prev => prev.filter(item => item.id !== itemId));
+      }
+
+      toast.success(`Item ${preferenceType === 'accept' ? 'accepted' : 'rejected'}`);
+    } catch (error) {
+      console.error('Error updating item preference:', error);
+      toast.error('Failed to update preference');
+    }
   };
 
   if (loading) {
@@ -151,6 +221,9 @@ export default function GroceryListPage() {
         </Card>
       ) : (
         <div className="space-y-8">
+          {/* Smart Shopping Summary */}
+          <SmartShoppingSummary items={unpurchasedItems} />
+
           {/* Unpurchased Items */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -199,43 +272,54 @@ export default function GroceryListPage() {
                 </div>
               </div>
             </div>
-            {sortedUnpurchased.map((item) => (
-              <Card key={item.id} className="p-4">
-                <div className="flex items-start gap-4">
-                  <Checkbox
-                    checked={purchasedItems.has(item.id)}
-                    onCheckedChange={() => toggleItemPurchased(item.id)}
-                  />
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
+
+            <div className="space-y-2">
+              {sortedUnpurchased.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-4 bg-card rounded-lg border"
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={purchasedItems.has(item.id)}
+                      onCheckedChange={() => toggleItemPurchased(item.id)}
+                    />
+                    <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{item.item_name}</h3>
-                        <Badge variant="outline">{item.household.name}</Badge>
+                        <span className="font-medium">{item.item_name}</span>
+                        {item.priority === 'urgent' && (
+                          <Badge variant="destructive">Urgent</Badge>
+                        )}
                       </div>
-                      {/* Priority Badge moved to right */}
-                      <span
-                        className={`px-1.5 py-0.5 text-xs font-bold rounded text-white ${
-                          item.priority === 'urgent' ? 'bg-red-500' : 'bg-blue-500'
-                        }`}
-                      >
-                        {item.priority === 'urgent' ? 'U' : 'R'}
-                      </span>
+                      <div className="text-sm text-muted-foreground">
+                        {item.quantity} {item.unit} • {item.section || 'Uncategorized'} • 
+                        Requested by {item.requester.full_name} for {item.household.name}
+                      </div>
                     </div>
-                    {item.item_description && (
-                      <p className="text-sm text-muted-foreground">
-                        {item.item_description}
-                      </p>
-                    )}
-                    <p className="text-sm">
-                      Quantity: {item.quantity} {item.unit || 'units'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Requested by {item.requester.full_name}
-                    </p>
+                  </div>
+
+                  {/* Accept/Reject buttons */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'accept')}
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'reject')}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              </Card>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Purchased Items */}

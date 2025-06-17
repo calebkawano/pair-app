@@ -1,5 +1,6 @@
 'use client';
 
+import { PRIORITY_LEVELS, STORE_SECTIONS } from '@/constants/store';
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import {
@@ -19,10 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Textarea } from "@/ui/textarea";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { STORE_SECTIONS, PRIORITY_LEVELS } from '@/constants/store';
 
 interface Household {
   id: number;
@@ -57,6 +58,14 @@ export function AddItemDialog({
   const [households, setHouseholds] = useState<Household[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const supabase = createClient();
+  const [aiFormData, setAiFormData] = useState({
+    mealType: '',
+    preferences: '',
+    dietary: '',
+    occasion: '',
+  });
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     loadHouseholds();
@@ -179,129 +188,242 @@ export function AddItemDialog({
     }
   };
 
+  const handleAiSuggest = async () => {
+    try {
+      setLoadingSuggestions(true);
+      const response = await fetch('/api/grocery-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(aiFormData),
+      });
+
+      if (!response.ok) throw new Error('Failed to get suggestions');
+
+      const data = await response.json();
+      setSuggestions(data.items || []);
+    } catch (error) {
+      console.error('Error getting suggestions:', error);
+      toast.error('Failed to get suggestions. Please try again.');
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const addSuggestedItem = async (item: any) => {
+    setFormData({
+      ...formData,
+      name: item.name,
+      quantity: item.quantity?.toString() || '',
+      unit: item.unit || '',
+      notes: item.notes || '',
+      section: item.section || '',
+      priority: item.priority || 'normal',
+    });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add Item</DialogTitle>
+          <DialogTitle>Add Items</DialogTitle>
           <DialogDescription>
-            Add an item to your grocery list. Only the name is required.
+            Add items manually or get AI-powered suggestions based on your needs.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Item Name */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Item Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g., Milk"
-            />
-          </div>
+        <Tabs defaultValue="manual" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+            <TabsTrigger value="ai">AI Suggestions</TabsTrigger>
+          </TabsList>
 
-          {/* Quantity and Unit */}
-          <div className="grid grid-cols-2 gap-4">
+          <TabsContent value="manual" className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
+              <Label htmlFor="name">Item Name *</Label>
               <Input
-                id="quantity"
-                type="number"
-                min="1"
-                value={formData.quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Milk"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="unit">Unit</Label>
-              <Input
-                id="unit"
-                value={formData.unit}
-                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                placeholder="e.g., lbs, pcs"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="unit">Unit</Label>
+                <Input
+                  id="unit"
+                  value={formData.unit}
+                  onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+                  placeholder="e.g., lbs, pcs"
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Store Section */}
-          <div className="space-y-2">
-            <Label htmlFor="section">Store Section</Label>
-            <Select
-              value={formData.section}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, section: value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a section" />
-              </SelectTrigger>
-              <SelectContent>
-                {STORE_SECTIONS.map((section) => (
-                  <SelectItem key={section} value={section}>
-                    {section}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Priority */}
-          <div className="space-y-2">
-            <Label htmlFor="priority">Priority</Label>
-            <Select
-              value={formData.priority}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITY_LEVELS.map((level) => (
-                  <SelectItem key={level.value} value={level.value}>
-                    {level.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Only show household selection if user has multiple households */}
-          {households.length > 1 && (
             <div className="space-y-2">
-              <Label htmlFor="household">Household *</Label>
+              <Label htmlFor="section">Store Section</Label>
               <Select
-                value={formData.household_id}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, household_id: value }))}>
+                value={formData.section}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, section: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a household" />
+                  <SelectValue placeholder="Select a section" />
                 </SelectTrigger>
                 <SelectContent>
-                  {households.map((household) => (
-                    <SelectItem key={household.id} value={household.id.toString()}>
-                      {household.name}
+                  {STORE_SECTIONS.map((section) => (
+                    <SelectItem key={section} value={section}>
+                      {section}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="e.g., Prefer organic, any brand is fine"
-            />
-          </div>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="priority">Priority</Label>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITY_LEVELS.map((level) => (
+                    <SelectItem key={level.value} value={level.value}>
+                      {level.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {households.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="household">Household *</Label>
+                <Select
+                  value={formData.household_id}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, household_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a household" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {households.map((household) => (
+                      <SelectItem key={household.id} value={household.id.toString()}>
+                        {household.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="e.g., Prefer organic, any brand is fine"
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ai" className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="mealType">Meal Type</Label>
+                <Input
+                  id="mealType"
+                  value={aiFormData.mealType}
+                  onChange={(e) => setAiFormData(prev => ({ ...prev, mealType: e.target.value }))}
+                  placeholder="e.g., Dinner, Weekly Meals"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="occasion">Occasion</Label>
+                <Input
+                  id="occasion"
+                  value={aiFormData.occasion}
+                  onChange={(e) => setAiFormData(prev => ({ ...prev, occasion: e.target.value }))}
+                  placeholder="e.g., Family Dinner, Party"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="preferences">Food Preferences</Label>
+              <Textarea
+                id="preferences"
+                value={aiFormData.preferences}
+                onChange={(e) => setAiFormData(prev => ({ ...prev, preferences: e.target.value }))}
+                placeholder="e.g., Mediterranean cuisine, budget-friendly"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dietary">Dietary Requirements</Label>
+              <Input
+                id="dietary"
+                value={aiFormData.dietary}
+                onChange={(e) => setAiFormData(prev => ({ ...prev, dietary: e.target.value }))}
+                placeholder="e.g., vegetarian, gluten-free"
+              />
+            </div>
+
+            <Button 
+              onClick={handleAiSuggest}
+              disabled={loadingSuggestions}
+              className="w-full"
+            >
+              {loadingSuggestions ? 'Generating Suggestions...' : 'Get Suggestions'}
+            </Button>
+
+            {suggestions.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="font-medium">Suggested Items</h3>
+                <div className="grid gap-2">
+                  {suggestions.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 border rounded-lg hover:bg-accent"
+                    >
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {item.quantity} {item.unit} • {item.section}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addSuggestedItem(item)}
+                      >
+                        Select
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !formData.name.trim()}
-          >
-            {isSubmitting ? 'Adding...' : 'Add'}
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? 'Adding...' : 'Add to List'}
           </Button>
         </DialogFooter>
       </DialogContent>
