@@ -110,6 +110,13 @@ export default function GroceryListPage() {
   };
 
   const toggleItemPurchased = (itemId: number) => {
+    // Only allow toggling if the item has been accepted
+    const item = items.find(i => i.id === itemId);
+    if (!item || (!acceptedItems.has(itemId) && !item.approver)) {
+      toast.error("You must accept this item before marking it as purchased");
+      return;
+    }
+
     setPurchasedItems(prev => {
       const newSet = new Set(prev);
       if (newSet.has(itemId)) {
@@ -307,6 +314,8 @@ export default function GroceryListPage() {
                     <Checkbox
                       checked={purchasedItems.has(item.id)}
                       onCheckedChange={() => toggleItemPurchased(item.id)}
+                      disabled={!acceptedItems.has(item.id) && !item.approver}
+                      title={!acceptedItems.has(item.id) && !item.approver ? "Accept this item before marking as purchased" : ""}
                     />
                     <div>
                       <div className="flex items-center gap-2">
@@ -366,6 +375,8 @@ export default function GroceryListPage() {
                     <Checkbox
                       checked={purchasedItems.has(item.id)}
                       onCheckedChange={() => toggleItemPurchased(item.id)}
+                      disabled={!acceptedItems.has(item.id) && !item.approver}
+                      title={!acceptedItems.has(item.id) && !item.approver ? "Accept this item before marking as purchased" : ""}
                     />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between gap-2">
