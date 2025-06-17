@@ -38,6 +38,7 @@ export default function GroceryListPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasedItems, setPurchasedItems] = useState<Set<number>>(new Set());
+  const [acceptedItems, setAcceptedItems] = useState<Set<number>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
   const { user } = useUser();
   const supabase = createClient();
@@ -154,10 +155,10 @@ export default function GroceryListPage() {
 
       // Update UI based on preference
       if (preferenceType === 'accept') {
-        // Move item to accepted list
-        setPurchasedItems(prev => new Set(prev).add(itemId));
+        // Mark item as accepted so buttons disappear
+        setAcceptedItems(prev => new Set(prev).add(itemId));
       } else {
-        // Remove item from list
+        // Remove item from list for rejected
         setItems(prev => prev.filter(item => item.id !== itemId));
       }
 
@@ -321,25 +322,27 @@ export default function GroceryListPage() {
                     </div>
                   </div>
 
-                  {/* Accept/Reject buttons */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'accept')}
-                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'reject')}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {/* Accept/Reject buttons (hide after accept) */}
+                  {!acceptedItems.has(item.id) && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'accept')}
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'reject')}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
