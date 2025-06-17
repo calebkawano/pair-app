@@ -25,6 +25,11 @@ import { Textarea } from "@/ui/textarea";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+// Available units for dropdown - matching the main grocery page
+const UNITS = [
+  'pcs', 'lbs', 'oz', 'kg', 'g', 'cups', 'tbsp', 'tsp', 'bottles', 'cans', 'boxes', 'bags', 'loaves'
+];
+
 interface Household {
   id: number;
   name: string;
@@ -262,22 +267,30 @@ export function AddItemDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
-                <Input
-                  id="unit"
+                <Select
                   value={formData.unit}
-                  onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                  placeholder="e.g., lbs, pcs"
-                />
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNITS.map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {unit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="section">Store Section</Label>
+              <Label htmlFor="section">Category</Label>
               <Select
                 value={formData.section}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, section: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a section" />
+                  <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
                   {STORE_SECTIONS.map((section) => (

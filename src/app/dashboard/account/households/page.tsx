@@ -19,7 +19,7 @@ import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { User } from "@supabase/supabase-js";
-import { ChevronDown, ChevronUp, Copy, Link as LinkIcon, MessageSquare, PlusCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Link as LinkIcon, MessageSquare, Palette, PlusCircle } from "lucide-react";
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -42,6 +42,7 @@ interface Household {
   name: string;
   members: Member[];
   isExpanded?: boolean;
+  color?: string;
 }
 
 type SupabaseHouseholdMember = {
@@ -58,8 +59,23 @@ type SupabaseHouseholdMember = {
 interface SupabaseHouseholdRow {
   id: string;
   name: string;
+  color?: string;
   household_members: SupabaseHouseholdMember[];
 }
+
+// Predefined color options
+const COLOR_OPTIONS = [
+  { name: 'Blue', value: 'bg-blue-500' },
+  { name: 'Green', value: 'bg-green-500' },
+  { name: 'Purple', value: 'bg-purple-500' },
+  { name: 'Orange', value: 'bg-orange-500' },
+  { name: 'Pink', value: 'bg-pink-500' },
+  { name: 'Teal', value: 'bg-teal-500' },
+  { name: 'Indigo', value: 'bg-indigo-500' },
+  { name: 'Red', value: 'bg-red-500' },
+  { name: 'Yellow', value: 'bg-yellow-500' },
+  { name: 'Cyan', value: 'bg-cyan-500' },
+];
 
 export default function HouseholdsPage() {
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -68,6 +84,7 @@ export default function HouseholdsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [invitePhone, setInvitePhone] = useState('');
   const [isSendingInvite, setIsSendingInvite] = useState(false);
@@ -75,6 +92,19 @@ export default function HouseholdsPage() {
   const [selectedHouseholdForRequest, setSelectedHouseholdForRequest] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const supabase = createClient();
+
+  // Get household color based on saved color or default hash
+  const getHouseholdColor = (household: Household) => {
+    if (household.color) {
+      return household.color;
+    }
+    // Default hash-based color if no custom color is set
+    const hash = household.name.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return COLOR_OPTIONS[Math.abs(hash) % COLOR_OPTIONS.length].value;
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -91,13 +121,43 @@ export default function HouseholdsPage() {
   const loadHouseholds = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('No user found when loading households');
+        return;
+      }
 
+      console.log('Loading households for user:', user.id);
+
+      // First, let's try a simpler query to see if the user has any household memberships
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('household_members')
+        .select('household_id, role')
+        .eq('user_id', user.id);
+
+      if (membershipError) {
+        console.error('Error fetching household memberships:', membershipError);
+        throw membershipError;
+      }
+
+      console.log('User household memberships:', membershipData);
+
+      if (!membershipData || membershipData.length === 0) {
+        console.log('User is not a member of any households');
+        setHouseholds([]);
+        return;
+      }
+
+      // Get the household IDs the user is a member of
+      const householdIds = membershipData.map(m => m.household_id);
+      console.log('Household IDs to fetch:', householdIds);
+
+      // Now fetch the household details and all members
       const { data: householdsData, error: householdsError } = await supabase
         .from('households')
         .select(`
           id,
           name,
+          color,
           household_members (
             user_id,
             role,
@@ -110,27 +170,53 @@ export default function HouseholdsPage() {
             )
           )
         `)
-        .eq('created_by', user.id);
+        .in('id', householdIds);
 
-      if (householdsError) throw householdsError;
+      if (householdsError) {
+        console.error('Supabase error details:', {
+          message: householdsError.message,
+          details: householdsError.details,
+          hint: householdsError.hint,
+          code: householdsError.code
+        });
+        throw householdsError;
+      }
 
-      const formattedHouseholds = (householdsData as unknown as SupabaseHouseholdRow[]).map((household) => ({
-        id: household.id,
-        name: household.name,
-        members: household.household_members.map((member) => ({
-          id: member.profiles.id,
-          full_name: member.profiles.full_name,
-          email: member.profiles.email,
-          dietary_preferences: member.dietary_preferences,
-          allergies: member.allergies || [],
-          role: member.role || 'member',
-        })),
-        isExpanded: false,
-      }));
+      console.log('Raw households data:', householdsData);
 
+      if (!householdsData) {
+        console.log('No households data returned');
+        setHouseholds([]);
+        return;
+      }
+
+      const formattedHouseholds = (householdsData as unknown as SupabaseHouseholdRow[]).map((household) => {
+        console.log('Processing household:', household);
+        return {
+          id: household.id,
+          name: household.name,
+          color: household.color,
+          members: household.household_members?.map((member) => ({
+            id: member.profiles?.id || '',
+            full_name: member.profiles?.full_name || 'Unknown',
+            email: member.profiles?.email || 'Unknown',
+            dietary_preferences: member.dietary_preferences || {},
+            allergies: member.allergies || [],
+            role: member.role || 'member',
+          })) || [],
+          isExpanded: false,
+        };
+      });
+
+      console.log('Formatted households:', formattedHouseholds);
       setHouseholds(formattedHouseholds);
     } catch (error) {
-      console.error('Error loading households:', error);
+      console.error('Error loading households:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      toast.error('Failed to load households. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -144,6 +230,35 @@ export default function HouseholdsPage() {
     ));
   };
 
+  const updateHouseholdColor = async (householdId: string, color: string) => {
+    try {
+      const { error } = await supabase
+        .from('households')
+        .update({ color })
+        .eq('id', householdId);
+
+      if (error) throw error;
+
+      // Update local state
+      setHouseholds(prev => prev.map(household => 
+        household.id === householdId 
+          ? { ...household, color }
+          : household
+      ));
+
+      toast.success('Household color updated successfully');
+      setColorDialogOpen(false);
+    } catch (error) {
+      console.error('Error updating household color:', error);
+      toast.error('Failed to update household color');
+    }
+  };
+
+  const openColorDialog = (household: Household) => {
+    setSelectedHousehold(household);
+    setColorDialogOpen(true);
+  };
+
   const createHousehold = async () => {
     if (!newHouseholdName.trim()) return;
     
@@ -154,6 +269,8 @@ export default function HouseholdsPage() {
         toast.error('You must be logged in to create a household');
         return;
       }
+
+      console.log('Creating household:', newHouseholdName.trim(), 'for user:', user.id);
 
       // First, create the household
       const { data: household, error: householdError } = await supabase
@@ -169,11 +286,7 @@ export default function HouseholdsPage() {
 
       if (householdError) {
         console.error('Error creating household:', householdError);
-        if (householdError.code === 'PGRST301') {
-          toast.error('You do not have permission to create households');
-        } else {
-          toast.error('Failed to create household. Please try again.');
-        }
+        toast.error(`Failed to create household: ${householdError.message}`);
         return;
       }
 
@@ -181,6 +294,8 @@ export default function HouseholdsPage() {
         toast.error('Failed to create household. Please try again.');
         return;
       }
+
+      console.log('Household created successfully:', household);
 
       // Then, add the creator as an admin member
       const { error: memberError } = await supabase
@@ -203,10 +318,13 @@ export default function HouseholdsPage() {
           .delete()
           .eq('id', household.id);
         
-        toast.error('Failed to set up household. Please try again.');
+        toast.error(`Failed to set up household: ${memberError.message}`);
         return;
       }
 
+      console.log('Member added successfully');
+
+      // Reload households
       await loadHouseholds();
       setNewHouseholdName('');
       setCreateDialogOpen(false);
@@ -216,29 +334,6 @@ export default function HouseholdsPage() {
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setIsCreating(false);
-    }
-  };
-
-  const updateMemberPreferences = async (
-    householdId: string,
-    memberId: string,
-    preferences: DietaryPreferences,
-    allergies: string[]
-  ) => {
-    try {
-      const { error } = await supabase
-        .from('household_members')
-        .update({
-          dietary_preferences: preferences,
-          allergies: allergies,
-        })
-        .eq('household_id', householdId)
-        .eq('user_id', memberId);
-
-      if (error) throw error;
-      await loadHouseholds();
-    } catch (error) {
-      console.error('Error updating member preferences:', error);
     }
   };
 
@@ -421,22 +516,64 @@ export default function HouseholdsPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Color Picker Dialog */}
+        <Dialog open={colorDialogOpen} onOpenChange={setColorDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Choose Household Color</DialogTitle>
+              <DialogDescription>
+                Select a color for {selectedHousehold?.name} tags
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-5 gap-3 py-4">
+              {COLOR_OPTIONS.map((colorOption) => (
+                <button
+                  key={colorOption.value}
+                  onClick={() => selectedHousehold && updateHouseholdColor(selectedHousehold.id, colorOption.value)}
+                  className={`w-12 h-12 rounded-lg ${colorOption.value} hover:scale-110 transition-transform border-2 ${
+                    selectedHousehold?.color === colorOption.value ? 'border-gray-900 ring-2 ring-gray-400' : 'border-gray-300'
+                  }`}
+                  title={colorOption.name}
+                />
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <div className="grid gap-6">
           {households.map((household) => (
             <Card key={household.id} className="p-6">
               <div className="space-y-4">
-                <button
-                  className="w-full flex items-center justify-between hover:bg-accent hover:text-accent-foreground p-2 rounded-md transition-colors"
-                  onClick={() => toggleHousehold(household.id)}
-                >
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between">
+                  <button
+                    className="flex items-center gap-4 hover:bg-accent hover:text-accent-foreground p-2 rounded-md transition-colors"
+                    onClick={() => toggleHousehold(household.id)}
+                  >
                     <h2 className="text-2xl font-semibold">{household.name}</h2>
-                    <Badge variant="secondary">
+                    <Badge 
+                      className={`text-white ${getHouseholdColor(household)}`}
+                    >
                       {household.members.length} {household.members.length === 1 ? 'Member' : 'Members'}
                     </Badge>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openColorDialog(household)}
+                      title="Change household color"
+                    >
+                      <Palette className="h-4 w-4" />
+                    </Button>
+                    <button
+                      onClick={() => toggleHousehold(household.id)}
+                      className="p-2 hover:bg-accent rounded-md transition-colors"
+                      title={household.isExpanded ? "Collapse" : "Expand"}
+                    >
+                      {household.isExpanded ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
+                    </button>
                   </div>
-                  {household.isExpanded ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
-                </button>
+                </div>
 
                 {household.isExpanded && (
                   <div className="space-y-6 pt-4">

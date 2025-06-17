@@ -9,8 +9,9 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import { Checkbox } from "@/ui/checkbox";
+import { Input } from "@/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { Check, ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Edit2, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,6 +25,7 @@ interface GroceryItem {
   section?: string | null;
   household: {
     name: string;
+    color?: string;
   };
   requester: {
     full_name: string;
@@ -34,12 +36,31 @@ interface GroceryItem {
   is_purchased?: boolean;
 }
 
+// Available units for dropdown
+const UNITS = [
+  'pcs', 'lbs', 'oz', 'kg', 'g', 'cups', 'tbsp', 'tsp', 'bottles', 'cans', 'boxes', 'bags', 'bunches', 'loaves'
+];
+
+// Household colors for consistent tagging
+const HOUSEHOLD_COLORS = [
+  'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 
+  'bg-teal-500', 'bg-indigo-500', 'bg-red-500', 'bg-yellow-500', 'bg-cyan-500'
+];
+
+// Store sections for category selection
+const STORE_SECTIONS = [
+  'Produce', 'Dairy', 'Meat', 'Bakery', 'Snacks', 'Canned Goods', 'Dry Goods', 'Beverages', 'Personal', 'Household'
+];
+
 export default function GroceryListPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasedItems, setPurchasedItems] = useState<Set<number>>(new Set());
   const [acceptedItems, setAcceptedItems] = useState<Set<number>>(new Set());
+  const [editingItems, setEditingItems] = useState<Set<number>>(new Set());
+  const [editingData, setEditingData] = useState<Record<number, Partial<GroceryItem>>>({});
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [householdColors, setHouseholdColors] = useState<Record<string, string>>({});
   const { user } = useUser();
   const supabase = createClient();
 
@@ -51,9 +72,26 @@ export default function GroceryListPage() {
   // Get unique sections from items
   const sections = ['all', ...new Set(items.filter(item => item.section).map(item => item.section as string))];
 
+  // Get household color based on saved color or default hash
+  const getHouseholdColor = (householdName: string) => {
+    // Check if we have a custom color for this household
+    const customColor = householdColors[householdName];
+    if (customColor) {
+      return customColor;
+    }
+    
+    // Default hash-based color if no custom color is set
+    const hash = householdName.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return HOUSEHOLD_COLORS[Math.abs(hash) % HOUSEHOLD_COLORS.length];
+  };
+
   useEffect(() => {
     if (user?.id) {
       loadGroceryList();
+      loadHouseholdColors();
       
       // Check for AI suggestions
       const suggestions = localStorage.getItem('grocerySuggestions');
@@ -106,6 +144,30 @@ export default function GroceryListPage() {
       toast.error('Failed to load grocery list. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHouseholdColors = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data: households, error } = await supabase
+        .from('households')
+        .select('name, color')
+        .eq('created_by', user.id);
+
+      if (error) throw error;
+
+      const colorMap: Record<string, string> = {};
+      households?.forEach(household => {
+        if (household.color) {
+          colorMap[household.name] = household.color;
+        }
+      });
+      
+      setHouseholdColors(colorMap);
+    } catch (error) {
+      console.error('Error loading household colors:', error);
     }
   };
 
@@ -179,6 +241,91 @@ export default function GroceryListPage() {
       });
       toast.error(`Failed to update preference: ${error.message || 'Unknown error'}`);
     }
+  };
+
+  const startEditing = (itemId: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (item) {
+      setEditingItems(prev => new Set(prev).add(itemId));
+      setEditingData(prev => ({
+        ...prev,
+        [itemId]: {
+          item_name: item.item_name,
+          item_description: item.item_description,
+          quantity: item.quantity,
+          unit: item.unit,
+          priority: item.priority,
+          section: item.section
+        }
+      }));
+    }
+  };
+
+  const cancelEditing = (itemId: number) => {
+    setEditingItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
+    setEditingData(prev => {
+      const newData = { ...prev };
+      delete newData[itemId];
+      return newData;
+    });
+  };
+
+  const saveEdit = async (itemId: number) => {
+    try {
+      const editData = editingData[itemId];
+      if (!editData) return;
+
+      // Update the item in the local state
+      setItems(prev => prev.map(item => 
+        item.id === itemId 
+          ? { ...item, ...editData }
+          : item
+      ));
+
+      // Stop editing
+      cancelEditing(itemId);
+      
+      toast.success('Item updated successfully');
+    } catch (error) {
+      console.error('Error updating item:', error);
+      toast.error('Failed to update item');
+    }
+  };
+
+  const deleteItem = async (itemId: number) => {
+    try {
+      // Remove from local state
+      setItems(prev => prev.filter(item => item.id !== itemId));
+      setAcceptedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      setPurchasedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+      
+      toast.success('Item deleted successfully');
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item');
+    }
+  };
+
+  const updateEditingData = (itemId: number, field: string, value: any) => {
+    setEditingData(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        [field]: value
+      }
+    }));
   };
 
   if (loading) {
@@ -310,48 +457,174 @@ export default function GroceryListPage() {
                   key={item.id}
                   className="flex items-center justify-between p-4 bg-card rounded-lg border"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1">
                     <Checkbox
                       checked={purchasedItems.has(item.id)}
                       onCheckedChange={() => toggleItemPurchased(item.id)}
                       disabled={!acceptedItems.has(item.id) && !item.approver}
                       title={!acceptedItems.has(item.id) && !item.approver ? "Accept this item before marking as purchased" : ""}
                     />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{item.item_name}</span>
-                        {item.priority === 'urgent' && (
-                          <Badge variant="destructive">Urgent</Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {item.quantity} {item.unit} • {item.section || 'Uncategorized'} • 
-                        Requested by {item.requester.full_name} for {item.household.name}
-                      </div>
+                    <div className="flex-1">
+                      {editingItems.has(item.id) ? (
+                        // Edit mode
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Input
+                              value={editingData[item.id]?.item_name || ''}
+                              onChange={(e) => updateEditingData(item.id, 'item_name', e.target.value)}
+                              className="flex-1 min-w-40"
+                              placeholder="Item name"
+                            />
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={editingData[item.id]?.quantity || 0}
+                                onChange={(e) => updateEditingData(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                                className="w-20"
+                                placeholder="Qty"
+                              />
+                              <Select
+                                value={editingData[item.id]?.unit || ''}
+                                onValueChange={(value) => updateEditingData(item.id, 'unit', value)}
+                              >
+                                <SelectTrigger className="w-20">
+                                  <SelectValue placeholder="Unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {UNITS.map((unit) => (
+                                    <SelectItem key={unit} value={unit}>
+                                      {unit}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Select
+                              value={editingData[item.id]?.priority || 'normal'}
+                              onValueChange={(value) => updateEditingData(item.id, 'priority', value)}
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="normal">Normal</SelectItem>
+                                <SelectItem value="urgent">Urgent</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Select
+                            value={editingData[item.id]?.section || ''}
+                            onValueChange={(value) => updateEditingData(item.id, 'section', value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STORE_SECTIONS.map((section) => (
+                                <SelectItem key={section} value={section}>
+                                  {section}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={editingData[item.id]?.item_description || ''}
+                            onChange={(e) => updateEditingData(item.id, 'item_description', e.target.value)}
+                            placeholder="Description (optional)"
+                            className="w-full"
+                          />
+                        </div>
+                      ) : (
+                        // View mode
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{item.item_name}</span>
+                            <Badge 
+                              className={`text-white ${getHouseholdColor(item.household.name)}`}
+                            >
+                              {item.household.name}
+                            </Badge>
+                            {item.priority === 'urgent' && (
+                              <Badge variant="destructive">Urgent</Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {item.quantity} {item.unit} • {item.section || 'Uncategorized'} • 
+                            Requested by {item.requester.full_name}
+                          </div>
+                          {item.item_description && (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {item.item_description}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Accept/Reject buttons (hide after accept) */}
-                  {!acceptedItems.has(item.id) && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'accept')}
-                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'reject')}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 ml-4">
+                    {editingItems.has(item.id) ? (
+                      // Edit mode buttons
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => saveEdit(item.id)}
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                        >
+                          <Save className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => cancelEditing(item.id)}
+                          className="text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : acceptedItems.has(item.id) || item.approver ? (
+                      // Edit and delete buttons for accepted items
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startEditing(item.id)}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteItem(item.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      // Accept/Reject buttons for new items
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'accept')}
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'reject')}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -382,7 +655,11 @@ export default function GroceryListPage() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <h3 className="font-medium line-through">{item.item_name}</h3>
-                          <Badge variant="outline">{item.household.name}</Badge>
+                          <Badge 
+                            className={`text-white ${getHouseholdColor(item.household.name)}`}
+                          >
+                            {item.household.name}
+                          </Badge>
                         </div>
                         {/* Priority Badge moved to right */}
                         <span

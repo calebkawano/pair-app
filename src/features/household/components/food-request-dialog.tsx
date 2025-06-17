@@ -4,12 +4,12 @@ import { STORE_SECTIONS } from '@/constants/store';
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/ui/dialog";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
@@ -168,12 +168,12 @@ export function FoodRequestDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="section">Store Section</Label>
+              <Label htmlFor="section">Category</Label>
               <Select
                 value={formData.section}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, section: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select section" />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
                   {STORE_SECTIONS.map((section) => (
