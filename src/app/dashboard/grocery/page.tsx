@@ -3,8 +3,8 @@
 import { AddItemDialog } from "@/features/grocery/components/add-item-dialog";
 import { SmartShoppingSummary } from "@/features/grocery/components/smart-shopping-summary";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/lib/supabase";
 import { getFoodRequests } from "@/lib/supabase/actions";
+import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
@@ -40,6 +40,7 @@ export default function GroceryListPage() {
   const [purchasedItems, setPurchasedItems] = useState<Set<number>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
   const { user } = useUser();
+  const supabase = createClient();
 
   // Sort & Filter state
   const [sortBy, setSortBy] = useState<'household' | 'priority' | 'quantity' | 'requester'>('priority');
@@ -121,10 +122,22 @@ export default function GroceryListPage() {
 
   const handleItemPreference = async (itemId: number, itemName: string, section: string | null, preferenceType: 'accept' | 'reject') => {
     try {
-      const { error } = await supabase
+      if (!user?.id) {
+        toast.error('Please sign in to update preferences');
+        return;
+      }
+
+      console.log('Updating preference:', {
+        user_id: user.id,
+        item_name: itemName,
+        section,
+        preference_type: preferenceType
+      });
+
+      const { data, error } = await supabase
         .from('item_preferences')
         .upsert({
-          user_id: user?.id,
+          user_id: user.id,
           item_name: itemName,
           section,
           preference_type: preferenceType
@@ -132,7 +145,12 @@ export default function GroceryListPage() {
           onConflict: 'user_id,item_name'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Preference updated:', data);
 
       // Update UI based on preference
       if (preferenceType === 'accept') {
@@ -144,9 +162,14 @@ export default function GroceryListPage() {
       }
 
       toast.success(`Item ${preferenceType === 'accept' ? 'accepted' : 'rejected'}`);
-    } catch (error) {
-      console.error('Error updating item preference:', error);
-      toast.error('Failed to update preference');
+    } catch (error: any) {
+      console.error('Error updating item preference:', {
+        error,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      toast.error(`Failed to update preference: ${error.message || 'Unknown error'}`);
     }
   };
 
