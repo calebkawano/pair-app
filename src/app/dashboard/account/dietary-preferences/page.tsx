@@ -11,17 +11,17 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-interface FormData {
+interface DietaryFormData {
   dietaryGoal: string;
   favoriteFood: string;
   cookingTime: string;
   servingCount: string;
 }
 
-export default function EditPage() {
+export default function DietaryPreferencesPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<DietaryFormData>({
     dietaryGoal: '',
     favoriteFood: '',
     cookingTime: '',
@@ -33,7 +33,7 @@ export default function EditPage() {
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSelectChange = (value: string, field: keyof FormData) => {
+  const handleSelectChange = (value: string, field: keyof DietaryFormData) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -46,15 +46,33 @@ export default function EditPage() {
       const suggestions = await getDietarySuggestions(formData);
       
       // Store the suggestions in localStorage for the grocery page to use
+      localStorage.setItem('dietarySuggestions', JSON.stringify(suggestions));
+      
+      toast.success('Dietary preferences saved successfully!');
+      
+    } catch (error) {
+      console.error('Error saving dietary preferences:', error);
+      toast.error('Failed to save dietary preferences. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGenerateGroceryList = async () => {
+    if (!formData.dietaryGoal) {
+      toast.error('Please fill in your dietary preferences first');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const suggestions = await getDietarySuggestions(formData);
       localStorage.setItem('grocerySuggestions', JSON.stringify({ items: suggestions }));
-      
-      toast.success('Dietary preferences updated! Redirecting to grocery list...');
-      
-      // Redirect to the grocery page
+      toast.success('Grocery list generated! Redirecting...');
       router.push('/dashboard/grocery');
     } catch (error) {
-      console.error('Error updating dietary preferences:', error);
-      toast.error('Failed to update dietary preferences. Please try again.');
+      console.error('Error generating grocery list:', error);
+      toast.error('Failed to generate grocery list. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +84,7 @@ export default function EditPage() {
         <div>
           <h1 className="text-2xl font-bold mb-2">Dietary Preferences</h1>
           <p className="text-muted-foreground">
-            Tell us about your dietary goals and food preferences to get personalized food recommendations.
+            Set your dietary goals and food preferences to get personalized recommendations.
           </p>
         </div>
 
@@ -140,13 +158,21 @@ export default function EditPage() {
               variant="outline"
               onClick={() => router.back()}
             >
-              Cancel
+              Back
             </Button>
             <Button
               type="submit"
               disabled={isLoading}
             >
-              {isLoading ? 'Updating...' : 'Update Dietary Preferences'}
+              {isLoading ? 'Saving...' : 'Save Preferences'}
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleGenerateGroceryList}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Generating...' : 'Generate Grocery List'}
             </Button>
           </div>
         </form>

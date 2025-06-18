@@ -1,12 +1,11 @@
 'use client';
 
 import { RecentMealsDialog } from "@/features/meals/components/recent-meals-dialog";
-import { dummyMeals } from "@/lib/dummy-data";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import type { User } from "@supabase/supabase-js";
-import { Clock, Edit, Settings, ShoppingCart } from "lucide-react";
+import { User } from "@supabase/supabase-js";
+import { Clock, List, Settings, ShoppingCart, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -16,10 +15,24 @@ interface Profile {
   [key: string]: unknown;
 }
 
+interface RecentMeal {
+  id: string;
+  meal_name: string;
+  cooking_time: string;
+  rating: number;
+  category: string;
+  dietary_tags: string[];
+  ingredients: string[];
+  steps: string[];
+  nutrition: any;
+  created_at: string;
+  created_from_groceries: boolean;
+}
+
 export default function DashboardHome() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [recentMeals] = useState<string[]>(['pasta-carbonara', 'chicken-stir-fry']); // Mock data
+  const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
   const [shoppingListCount] = useState(7); // Mock data  
   const [showRecentMeals, setShowRecentMeals] = useState(false);
   const supabase = createClient();
@@ -43,11 +56,21 @@ export default function DashboardHome() {
       .single();
     
     setProfile(profileData);
+
+    // Load recent meals
+    const { data: mealsData } = await supabase
+      .from('recent_meals')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (mealsData) {
+      setRecentMeals(mealsData);
+    }
   };
 
-  const lastMeal = recentMeals.length > 0 
-    ? dummyMeals.find(meal => meal.id === recentMeals[recentMeals.length - 1])
-    : null;
+  const lastMeal = recentMeals.length > 0 ? recentMeals[0] : null;
 
   const handleGoToMeals = () => {
     setShowRecentMeals(false);
@@ -73,25 +96,22 @@ export default function DashboardHome() {
   };
 
   const getUserDisplayName = () => {
-    // Check user metadata first, then profile table, then fallback to email
-    if (user?.user_metadata?.full_name) {
-      return user.user_metadata.full_name.split(' ')[0]; // First name only
-    }
-    if (profile?.full_name) {
-      return profile.full_name.split(' ')[0]; // First name only
-    }
-    if (user?.email) {
-      return user.email.split('@')[0]; // Fallback to email username
-    }
-    return '';
+    if (profile?.full_name) return profile.full_name;
+    if (user?.email) return user.email.split('@')[0];
+    return 'there';
   };
 
   return (
-    <main className="container mx-auto p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold">Welcome{getUserDisplayName() ? `, ${getUserDisplayName()}` : ''}!</h1>
-          <p className="text-muted-foreground mt-2">Here's what's happening with your meals and shopping</p>
+    <main className="container max-w-4xl mx-auto p-4 space-y-8">
+      <div className="space-y-8">
+        {/* Welcome Section */}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">
+            Hey {getUserDisplayName()}! 👋
+          </h1>
+          <p className="text-muted-foreground">
+            {getWittyMessage()}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -103,14 +123,14 @@ export default function DashboardHome() {
                 Recent Meals
               </CardTitle>
               <CardDescription>
-                {lastMeal ? `Last planned: ${lastMeal.name}` : 'No recent meals yet'}
+                {lastMeal ? `Last planned: ${lastMeal.meal_name}` : 'No recent meals yet'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {lastMeal && (
                 <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="font-medium text-sm">{lastMeal.name}</p>
-                  <p className="text-xs text-muted-foreground">{lastMeal.cookingTime}</p>
+                  <p className="font-medium text-sm">{lastMeal.meal_name}</p>
+                  <p className="text-xs text-muted-foreground">{lastMeal.cooking_time}</p>
                 </div>
               )}
               <div className="flex gap-2">
@@ -133,94 +153,85 @@ export default function DashboardHome() {
 
           {/* Shopping List Card */}
           <Card className="hover:shadow-lg transition-shadow">
-            <Link href="/dashboard/grocery">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="h-6 w-6" />
-                  Shopping List
-                </CardTitle>
-                <CardDescription>
-                  {shoppingListCount > 0 
-                    ? `${shoppingListCount} items remaining` 
-                    : 'Your list is empty'
-                  }
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {shoppingListCount > 0 ? (
-                  <div className="space-y-3">
-                    <div className="p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Current List</span>
-                        <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full">
-                          {shoppingListCount}
-                        </span>
-                      </div>
-                    </div>
-                    <Button variant="secondary" className="w-full">
-                      View Shopping List
-                    </Button>
-                  </div>
-                ) : (
-                  <Button variant="secondary" className="w-full">
-                    Create Shopping List
-                  </Button>
-                )}
-              </CardContent>
-            </Link>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <List className="h-6 w-6" />
+                Shopping Lists
+              </CardTitle>
+              <CardDescription>
+                {shoppingListCount} items on your list
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="font-medium text-sm">Weekly Groceries</p>
+                <p className="text-xs text-muted-foreground">Last updated 2 days ago</p>
+              </div>
+              <Link href="/dashboard/grocery">
+                <Button variant="secondary" className="w-full gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Go Shopping
+                </Button>
+              </Link>
+            </CardContent>
           </Card>
 
-          {/* Edit Grocery Preferences Card */}
+          {/* User Profile Card */}
           <Card className="hover:shadow-lg transition-shadow">
-            <Link href="/dashboard/edit">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Edit className="h-6 w-6" />
-                  Edit Grocery Preferences
-                </CardTitle>
-                <CardDescription>
-                  {getWittyMessage()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="secondary" className="w-full">
-                  Update Preferences
-                </Button>
-              </CardContent>
-            </Link>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserIcon className="h-6 w-6" />
+                Profile
+              </CardTitle>
+              <CardDescription>
+                Manage your account and preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="font-medium text-sm">{profile?.full_name || user?.email}</p>
+                <p className="text-xs text-muted-foreground">Member since {new Date(user?.created_at || '').toLocaleDateString()}</p>
+              </div>
+              <div className="grid gap-2">
+                <Link href="/dashboard/account">
+                  <Button variant="outline" className="w-full">
+                    Edit Profile
+                  </Button>
+                </Link>
+                <Link href="/dashboard/account/households">
+                  <Button variant="outline" className="w-full">
+                    Manage Households
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Settings Card */}
           <Card className="hover:shadow-lg transition-shadow">
-            <Link href="/dashboard/account">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-6 w-6" />
-                  Settings
-                </CardTitle>
-                <CardDescription>
-                  Account, preferences, and app settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="text-sm text-muted-foreground">
-                    {user?.user_metadata?.full_name ? (
-                      <p>Signed in as {user.user_metadata.full_name}</p>
-                    ) : profile?.full_name ? (
-                      <p>Signed in as {profile.full_name}</p>
-                    ) : user?.email ? (
-                      <p>Signed in as {user.email}</p>
-                    ) : (
-                      <p>Account information</p>
-                    )}
-                  </div>
-                  <Button variant="secondary" className="w-full">
-                    Manage Settings
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-6 w-6" />
+                Settings
+              </CardTitle>
+              <CardDescription>
+                Customize your experience
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid gap-2">
+                <Link href="/dashboard/account/dietary-preferences">
+                  <Button variant="outline" className="w-full">
+                    Dietary Preferences
                   </Button>
-                </div>
-              </CardContent>
-            </Link>
+                </Link>
+                <Link href="/dashboard/account/shopping-settings">
+                  <Button variant="outline" className="w-full">
+                    Shopping Settings
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
         </div>
       </div>
@@ -228,7 +239,7 @@ export default function DashboardHome() {
       <RecentMealsDialog
         isOpen={showRecentMeals}
         onClose={() => setShowRecentMeals(false)}
-        recentMealIds={recentMeals}
+        recentMeals={recentMeals}
         onGoToMeals={handleGoToMeals}
       />
     </main>

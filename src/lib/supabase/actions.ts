@@ -8,11 +8,11 @@ export async function getFoodRequests(userId: string) {
     .from('food_requests')
     .select(`
       *,
-      household:households(name),
+      household:households(name, color),
       requester:profiles!food_requests_requested_by_fkey(full_name),
       approver:profiles!food_requests_approved_by_fkey(full_name)
     `)
-    .eq('status', 'approved')
+    .in('status', ['approved', 'pending'])
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -116,4 +116,38 @@ export async function createAIFoodRequests(userId: string, items: any[]) {
   }
 
   return data;
+}
+
+export async function getRecentMeals(userId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('recent_meals')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  if (error) {
+    console.error('Error fetching recent meals:', error)
+    throw error
+  }
+  return data
+}
+
+export async function createRecentMeal(userId: string, mealData: any) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('recent_meals')
+    .insert([{
+      user_id: userId,
+      ...mealData,
+      created_from_groceries: true
+    }])
+    .select()
+
+  if (error) {
+    console.error('Error creating recent meal:', error)
+    throw error
+  }
+  return data[0]
 } 

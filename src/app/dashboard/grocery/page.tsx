@@ -34,6 +34,8 @@ interface GroceryItem {
     full_name: string;
   } | null;
   is_purchased?: boolean;
+  is_accepted?: boolean;
+  status: 'pending' | 'approved' | 'declined';
 }
 
 // Available units for dropdown
@@ -55,8 +57,6 @@ const STORE_SECTIONS = [
 export default function GroceryListPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [purchasedItems, setPurchasedItems] = useState<Set<number>>(new Set());
-  const [acceptedItems, setAcceptedItems] = useState<Set<number>>(new Set());
   const [editingItems, setEditingItems] = useState<Set<number>>(new Set());
   const [editingData, setEditingData] = useState<Record<number, Partial<GroceryItem>>>({});
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -114,7 +114,9 @@ export default function GroceryListPage() {
               full_name: 'AI Assistant'
             },
             approver: null,
-            is_purchased: false
+            is_purchased: false,
+            is_accepted: false,
+            status: 'pending'
           }));
           
           // Add AI suggestions to the list
@@ -171,23 +173,42 @@ export default function GroceryListPage() {
     }
   };
 
-  const toggleItemPurchased = (itemId: number) => {
-    // Only allow toggling if the item has been accepted
+  const toggleItemPurchased = async (itemId: number) => {
     const item = items.find(i => i.id === itemId);
-    if (!item || (!acceptedItems.has(itemId) && !item.approver)) {
+    if (!item) return;
+
+    // Only allow toggling if the item has been accepted
+    if (!item.is_accepted && item.status !== 'approved') {
       toast.error("You must accept this item before marking it as purchased");
       return;
     }
 
-    setPurchasedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
+    try {
+      const newPurchasedState = !item.is_purchased;
+      
+      // Update in database
+      const { error } = await supabase
+        .from('food_requests')
+        .update({ 
+          is_purchased: newPurchasedState,
+          purchased_at: newPurchasedState ? new Date().toISOString() : null
+        })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      // Update local state
+      setItems(prev => prev.map(i => 
+        i.id === itemId 
+          ? { ...i, is_purchased: newPurchasedState }
+          : i
+      ));
+
+      toast.success(newPurchasedState ? 'Item marked as purchased' : 'Item unmarked as purchased');
+    } catch (error) {
+      console.error('Error updating purchased status:', error);
+      toast.error('Failed to update item status');
+    }
   };
 
   const handleItemPreference = async (itemId: number, itemName: string, section: string | null, preferenceType: 'accept' | 'reject') => {
@@ -197,14 +218,46 @@ export default function GroceryListPage() {
         return;
       }
 
-      console.log('Updating preference:', {
-        user_id: user.id,
-        item_name: itemName,
-        section,
-        preference_type: preferenceType
-      });
+      if (preferenceType === 'accept') {
+        // Update the food request to mark as accepted
+        const { error: updateError } = await supabase
+          .from('food_requests')
+          .update({
+            is_accepted: true,
+            accepted_by: user.id,
+            accepted_at: new Date().toISOString()
+          })
+          .eq('id', itemId);
 
-      const { data, error } = await supabase
+        if (updateError) throw updateError;
+
+        // Update local state
+        setItems(prev => prev.map(item => 
+          item.id === itemId 
+            ? { ...item, is_accepted: true }
+            : item
+        ));
+
+        toast.success('Item accepted');
+      } else {
+        // For reject, remove item from list and update database
+        const { error: updateError } = await supabase
+          .from('food_requests')
+          .update({
+            status: 'declined'
+          })
+          .eq('id', itemId);
+
+        if (updateError) throw updateError;
+
+        // Remove from local state
+        setItems(prev => prev.filter(item => item.id !== itemId));
+        
+        toast.success('Item rejected');
+      }
+
+      // Also save preference for future suggestions
+      const { error: prefError } = await supabase
         .from('item_preferences')
         .upsert({
           user_id: user.id,
@@ -215,30 +268,12 @@ export default function GroceryListPage() {
           onConflict: 'user_id,item_name'
         });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      if (prefError) {
+        console.error('Error saving preference:', prefError);
+        // Don't show error to user as the main action succeeded
       }
-
-      console.log('Preference updated:', data);
-
-      // Update UI based on preference
-      if (preferenceType === 'accept') {
-        // Mark item as accepted so buttons disappear
-        setAcceptedItems(prev => new Set(prev).add(itemId));
-      } else {
-        // Remove item from list for rejected
-        setItems(prev => prev.filter(item => item.id !== itemId));
-      }
-
-      toast.success(`Item ${preferenceType === 'accept' ? 'accepted' : 'rejected'}`);
     } catch (error: any) {
-      console.error('Error updating item preference:', {
-        error,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
+      console.error('Error updating item preference:', error);
       toast.error(`Failed to update preference: ${error.message || 'Unknown error'}`);
     }
   };
@@ -279,6 +314,21 @@ export default function GroceryListPage() {
       const editData = editingData[itemId];
       if (!editData) return;
 
+      // Update in database
+      const { error } = await supabase
+        .from('food_requests')
+        .update({
+          item_name: editData.item_name,
+          item_description: editData.item_description,
+          quantity: editData.quantity,
+          unit: editData.unit,
+          priority: editData.priority,
+          section: editData.section
+        })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
       // Update the item in the local state
       setItems(prev => prev.map(item => 
         item.id === itemId 
@@ -298,23 +348,51 @@ export default function GroceryListPage() {
 
   const deleteItem = async (itemId: number) => {
     try {
+      // Delete from database
+      const { error } = await supabase
+        .from('food_requests')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
+
       // Remove from local state
       setItems(prev => prev.filter(item => item.id !== itemId));
-      setAcceptedItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-      setPurchasedItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
       
       toast.success('Item deleted successfully');
     } catch (error) {
       console.error('Error deleting item:', error);
       toast.error('Failed to delete item');
+    }
+  };
+
+  const clearAllPurchased = async () => {
+    try {
+      const purchasedItems = items.filter(item => item.is_purchased);
+      const purchasedIds = purchasedItems.map(item => item.id);
+
+      if (purchasedIds.length === 0) return;
+
+      // Update database
+      const { error } = await supabase
+        .from('food_requests')
+        .update({ 
+          is_purchased: false,
+          purchased_at: null
+        })
+        .in('id', purchasedIds);
+
+      if (error) throw error;
+
+      // Update local state
+      setItems(prev => prev.map(item => 
+        item.is_purchased ? { ...item, is_purchased: false } : item
+      ));
+
+      toast.success('All items cleared from purchased list');
+    } catch (error) {
+      console.error('Error clearing purchased items:', error);
+      toast.error('Failed to clear purchased items');
     }
   };
 
@@ -338,8 +416,8 @@ export default function GroceryListPage() {
     );
   }
 
-  const unpurchasedItems = items.filter(item => !purchasedItems.has(item.id));
-  const purchasedItemsList = items.filter(item => purchasedItems.has(item.id));
+  const unpurchasedItems = items.filter(item => !item.is_purchased);
+  const purchasedItemsList = items.filter(item => item.is_purchased);
 
   // Filter & Sort logic
   const filterAndSortItems = (items: GroceryItem[]) => {
@@ -459,10 +537,10 @@ export default function GroceryListPage() {
                 >
                   <div className="flex items-center gap-3 flex-1">
                     <Checkbox
-                      checked={purchasedItems.has(item.id)}
+                      checked={item.is_purchased || false}
                       onCheckedChange={() => toggleItemPurchased(item.id)}
-                      disabled={!acceptedItems.has(item.id) && !item.approver}
-                      title={!acceptedItems.has(item.id) && !item.approver ? "Accept this item before marking as purchased" : ""}
+                      disabled={!item.is_accepted && item.status !== 'approved'}
+                      title={!item.is_accepted && item.status !== 'approved' ? "Accept this item before marking as purchased" : ""}
                     />
                     <div className="flex-1">
                       {editingItems.has(item.id) ? (
@@ -583,7 +661,7 @@ export default function GroceryListPage() {
                           <X className="h-4 w-4" />
                         </Button>
                       </>
-                    ) : acceptedItems.has(item.id) || item.approver ? (
+                    ) : (item.is_accepted || item.status === 'approved') ? (
                       // Edit and delete buttons for accepted items
                       <>
                         <Button
@@ -637,7 +715,7 @@ export default function GroceryListPage() {
                 <h2 className="text-xl font-semibold">Purchased</h2>
                 <Button
                   variant="outline"
-                  onClick={() => setPurchasedItems(new Set())}
+                  onClick={clearAllPurchased}
                 >
                   Clear All
                 </Button>
@@ -646,10 +724,8 @@ export default function GroceryListPage() {
                 <Card key={item.id} className="p-4 bg-muted">
                   <div className="flex items-start gap-4">
                     <Checkbox
-                      checked={purchasedItems.has(item.id)}
+                      checked={item.is_purchased || false}
                       onCheckedChange={() => toggleItemPurchased(item.id)}
-                      disabled={!acceptedItems.has(item.id) && !item.approver}
-                      title={!acceptedItems.has(item.id) && !item.approver ? "Accept this item before marking as purchased" : ""}
                     />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between gap-2">

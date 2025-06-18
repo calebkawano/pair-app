@@ -1,6 +1,5 @@
 "use client";
 
-import { dummyMeals } from "@/lib/dummy-data";
 import { Button } from "@/ui/button";
 import {
   Dialog,
@@ -13,23 +12,37 @@ import { Star, Utensils, X } from "lucide-react";
 import { useState } from "react";
 import { MealDialog } from "./meal-dialog";
 
+interface RecentMeal {
+  id: string;
+  meal_name: string;
+  cooking_time: string;
+  rating: number;
+  category: string;
+  dietary_tags: string[];
+  ingredients: string[];
+  steps: string[];
+  nutrition: any;
+  created_at: string;
+  created_from_groceries: boolean;
+}
+
 interface RecentMealsDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  recentMealIds: string[];
+  recentMeals: RecentMeal[];
   onGoToMeals: () => void;
 }
 
 export function RecentMealsDialog({ 
   isOpen, 
   onClose, 
-  recentMealIds, 
+  recentMeals, 
   onGoToMeals 
 }: RecentMealsDialogProps) {
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
 
   const selectedMeal = selectedMealId 
-    ? dummyMeals.find(meal => meal.id === selectedMealId) ?? null
+    ? recentMeals.find(meal => meal.id === selectedMealId) ?? null
     : null;
 
   const handleMealClick = (mealId: string) => {
@@ -42,7 +55,6 @@ export function RecentMealsDialog({
 
   const handleMealNext = () => {
     setSelectedMealId(null);
-    // Could add logic here to add to recent meals again
   };
 
   return (
@@ -72,34 +84,35 @@ export function RecentMealsDialog({
           </DialogHeader>
 
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {recentMealIds.length > 0 ? (
-              recentMealIds.map((mealId) => {
-                const meal = dummyMeals.find((m) => m.id === mealId);
-                if (!meal) return null;
-                
-                return (
-                  <div
-                    key={meal.id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => handleMealClick(meal.id)}
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium">{meal.name}</h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{meal.cookingTime}</span>
-                        <span>•</span>
-                        <div className="flex items-center gap-1">
-                          {meal.rating}
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        </div>
+            {recentMeals.length > 0 ? (
+              recentMeals.map((meal) => (
+                <div
+                  key={meal.id}
+                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => handleMealClick(meal.id)}
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium">{meal.meal_name}</h3>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>{meal.cooking_time}</span>
+                      <span>•</span>
+                      <div className="flex items-center gap-1">
+                        {meal.rating}
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                       </div>
+                      {meal.created_from_groceries && (
+                        <>
+                          <span>•</span>
+                          <span className="text-green-600">From Groceries</span>
+                        </>
+                      )}
                     </div>
-                    <Button variant="ghost" size="sm">
-                      View Details
-                    </Button>
                   </div>
-                );
-              })
+                  <Button variant="ghost" size="sm">
+                    View Details
+                  </Button>
+                </div>
+              ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Utensils className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -111,12 +124,25 @@ export function RecentMealsDialog({
         </DialogContent>
       </Dialog>
 
-      <MealDialog
-        meal={selectedMeal}
-        isOpen={!!selectedMealId}
-        onClose={handleMealDialogClose}
-        onNext={handleMealNext}
-      />
+      {selectedMeal && (
+        <MealDialog
+          meal={{
+            id: selectedMeal.id,
+            name: selectedMeal.meal_name,
+            cookingTime: selectedMeal.cooking_time,
+            rating: selectedMeal.rating,
+            category: selectedMeal.category === 'main' ? 'high-protein' : 'random',
+            dietaryTags: selectedMeal.dietary_tags,
+            ingredients: selectedMeal.ingredients,
+            steps: selectedMeal.steps,
+            nutrition: selectedMeal.nutrition,
+            imageUrl: '' // We don't store images yet
+          }}
+          isOpen={!!selectedMealId}
+          onClose={handleMealDialogClose}
+          onNext={handleMealNext}
+        />
+      )}
     </>
   );
 } 

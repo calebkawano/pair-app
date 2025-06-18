@@ -106,9 +106,6 @@ export default function AccountPage() {
               <Link href="/dashboard/account/households">
                 <Button variant="outline" className="w-full">Manage Households</Button>
               </Link>
-              <Link href="/dashboard/account/dietary-preferences">
-                <Button variant="outline" className="w-full">Dietary Preferences</Button>
-              </Link>
             </div>
           </div>
         </Card>
@@ -121,11 +118,11 @@ export default function AccountPage() {
               <p className="text-sm text-muted-foreground">Customize your shopping experience</p>
             </div>
             <div className="grid gap-2">
-              <Link href="/dashboard/account/shopping-preferences">
-                <Button variant="outline" className="w-full">Shopping Settings</Button>
+              <Link href="/dashboard/account/dietary-preferences">
+                <Button variant="outline" className="w-full">Dietary Preferences</Button>
               </Link>
-              <Link href="/dashboard/account/favorite-stores">
-                <Button variant="outline" className="w-full">Favorite Stores</Button>
+              <Link href="/dashboard/account/shopping-settings">
+                <Button variant="outline" className="w-full">Shopping Settings</Button>
               </Link>
             </div>
           </div>
