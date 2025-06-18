@@ -75,7 +75,10 @@ export default function MealsPage() {
     } else {
       // It's a template Meal, convert it to RecentMeal
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        toast.error('You must be logged in to save meals');
+        return;
+      }
 
       const newMeal: RecentMeal = {
         id: selectedMeal.id,
@@ -91,20 +94,55 @@ export default function MealsPage() {
         created_from_groceries: false
       };
 
-      const { error: mealError } = await supabase
-        .from('recent_meals')
-        .insert([{
-          ...newMeal,
-          user_id: user.id
-        }]);
+      try {
+        const { error: mealError } = await supabase
+          .from('recent_meals')
+          .insert([{
+            user_id: user.id,
+            meal_name: selectedMeal.name,
+            cooking_time: selectedMeal.cookingTime,
+            rating: selectedMeal.rating,
+            category: selectedMeal.category,
+            dietary_tags: selectedMeal.dietaryTags,
+            ingredients: selectedMeal.ingredients,
+            steps: selectedMeal.steps,
+            nutrition: selectedMeal.nutrition,
+            created_from_groceries: false
+          }]);
 
-      if (mealError) {
-        console.error('Error saving meal:', mealError);
-        toast.error('Failed to save meal');
+        if (mealError) {
+          // Log the error in multiple ways to capture all information
+          console.error('Error saving meal - Raw error:', mealError);
+          console.error('Error saving meal - Stringified:', JSON.stringify(mealError, null, 2));
+          console.error('Error saving meal - Properties:', {
+            message: mealError.message,
+            details: mealError.details,
+            hint: mealError.hint,
+            code: mealError.code
+          });
+          
+          // Try to get all enumerable and non-enumerable properties
+          const errorInfo: Record<string, any> = {};
+          Object.getOwnPropertyNames(mealError).forEach((key) => {
+            try {
+              errorInfo[key] = (mealError as any)[key];
+            } catch (e) {
+              errorInfo[key] = `[Error accessing property: ${e instanceof Error ? e.message : 'Unknown error'}]`;
+            }
+          });
+          console.error('Error saving meal - All properties:', errorInfo);
+          
+          toast.error(`Failed to save meal: ${mealError.message || mealError.details || 'Unknown database error'}`);
+          return;
+        }
+
+        setRecentMeals((prev) => [newMeal, ...prev]);
+        toast.success('Meal saved successfully!');
+      } catch (error) {
+        console.error('Unexpected error saving meal:', error);
+        toast.error('An unexpected error occurred while saving the meal');
         return;
       }
-
-      setRecentMeals((prev) => [newMeal, ...prev]);
     }
 
     setSelectedCategory(null);

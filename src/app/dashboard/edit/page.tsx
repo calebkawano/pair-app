@@ -46,7 +46,7 @@ export default function EditPage() {
       const suggestions = await getDietarySuggestions(formData);
       
       // Store the suggestions in localStorage for the grocery page to use
-      localStorage.setItem('grocerySuggestions', JSON.stringify({ items: suggestions }));
+      localStorage.setItem('grocerySuggestions', JSON.stringify(suggestions));
       
       toast.success('Dietary preferences updated! Redirecting to grocery list...');
       

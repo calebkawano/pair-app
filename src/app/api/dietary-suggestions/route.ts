@@ -46,6 +46,7 @@ Focus on nutritional value, dietary alignment, and cooking compatibility. Genera
 2. Match favorite food preferences
 3. Are suitable for the cooking time available
 4. Are portioned appropriately for the serving count
+5. That have variety in types of food (not just one type of food)
 
 For each recommended food item, provide:
 1. Item name
@@ -77,7 +78,7 @@ Format the response as a JSON array of objects with these exact fields:
       messages: [
         {
           role: "system",
-          content: "You are a nutritionist and culinary expert that helps users choose foods that align with their dietary goals and cooking preferences. Focus on nutritional value, meal compatibility, and dietary alignment. Always format responses as valid JSON arrays with the exact structure specified."
+          content: "You are a nutritionist and culinary expert that helps users choose foods that align with their dietary goals provided and cooking preferences also provided. Focus on nutritional value, meal compatibility, and dietary alignment. Always format responses as valid JSON arrays with the exact structure specified."
         },
         {
           role: "user",
@@ -86,7 +87,7 @@ Format the response as a JSON array of objects with these exact fields:
       ],
       model: "gpt-3.5-turbo",
       response_format: { type: "json_object" },
-      temperature: 0.7,
+      temperature: 0.9,
     });
 
     let suggestions;

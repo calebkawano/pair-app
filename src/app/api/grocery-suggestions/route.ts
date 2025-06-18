@@ -88,7 +88,7 @@ Format the response as a JSON array of objects with these exact fields:
       ],
       model: "gpt-3.5-turbo",
       response_format: { type: "json_object" },
-      temperature: 0.7,
+      temperature: 0.9,
     });
 
     let suggestions;

@@ -20,7 +20,8 @@ interface DietaryFormData {
 
 export default function DietaryPreferencesPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [formData, setFormData] = useState<DietaryFormData>({
     dietaryGoal: '',
     favoriteFood: '',
@@ -39,7 +40,7 @@ export default function DietaryPreferencesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSaving(true);
 
     try {
       // Call the dietary suggestions API
@@ -54,7 +55,7 @@ export default function DietaryPreferencesPage() {
       console.error('Error saving dietary preferences:', error);
       toast.error('Failed to save dietary preferences. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -64,17 +65,17 @@ export default function DietaryPreferencesPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsGenerating(true);
     try {
       const suggestions = await getDietarySuggestions(formData);
-      localStorage.setItem('grocerySuggestions', JSON.stringify({ items: suggestions }));
+      localStorage.setItem('grocerySuggestions', JSON.stringify(suggestions));
       toast.success('Grocery list generated! Redirecting...');
       router.push('/dashboard/grocery');
     } catch (error) {
       console.error('Error generating grocery list:', error);
       toast.error('Failed to generate grocery list. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   };
 
@@ -162,17 +163,17 @@ export default function DietaryPreferencesPage() {
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isSaving}
             >
-              {isLoading ? 'Saving...' : 'Save Preferences'}
+              {isSaving ? 'Saving...' : 'Save Preferences'}
             </Button>
             <Button
               type="button"
               variant="default"
               onClick={handleGenerateGroceryList}
-              disabled={isLoading}
+              disabled={isGenerating}
             >
-              {isLoading ? 'Generating...' : 'Generate Grocery List'}
+              {isGenerating ? 'Generating...' : 'Generate Grocery List'}
             </Button>
           </div>
         </form>

@@ -90,49 +90,79 @@ export default function GroceryListPage() {
 
   useEffect(() => {
     if (user?.id) {
-      loadGroceryList();
+      loadGroceryListAndSuggestions();
       loadHouseholdColors();
-      
-      // Check for AI suggestions
-      const suggestions = localStorage.getItem('grocerySuggestions');
-      if (suggestions) {
-        try {
-          const parsedSuggestions = JSON.parse(suggestions);
-          // Convert AI suggestions to GroceryItem format
-          const newItems = parsedSuggestions.map((suggestion: any, index: number) => ({
-            id: Date.now() + index, // Generate unique IDs
-            item_name: suggestion.name,
-            item_description: `${suggestion.cookingUses.join(', ')}. Storage: ${suggestion.storageTips}. Nutrition: ${suggestion.nutritionalHighlights.join(', ')}`,
-            quantity: suggestion.quantity,
-            unit: suggestion.unit,
-            priority: 'normal',
-            section: suggestion.category,
-            household: {
-              name: 'AI Suggested'
-            },
-            requester: {
-              full_name: 'AI Assistant'
-            },
-            approver: null,
-            is_purchased: false,
-            is_accepted: false,
-            status: 'pending'
-          }));
-          
-          // Add AI suggestions to the list
-          setItems(prev => [...prev, ...newItems]);
-          
-          // Clear suggestions from localStorage
-          localStorage.removeItem('grocerySuggestions');
-          
-          toast.success('AI suggestions added to your list!');
-        } catch (error) {
-          console.error('Error processing AI suggestions:', error);
-          toast.error('Failed to process AI suggestions');
-        }
-      }
     }
   }, [user]);
+
+  const loadGroceryListAndSuggestions = async () => {
+    // First load the existing grocery list
+    await loadGroceryList();
+    
+    // Then check for AI suggestions and add them
+    const suggestions = localStorage.getItem('grocerySuggestions');
+    if (suggestions) {
+      try {
+        console.log('Found AI suggestions in localStorage:', suggestions);
+        const parsedSuggestions = JSON.parse(suggestions);
+        // Handle both legacy format with items property and new direct array format
+        const suggestionsArray = Array.isArray(parsedSuggestions) ? parsedSuggestions : (parsedSuggestions.items || []);
+        
+        console.log('Processed suggestions array:', suggestionsArray);
+        
+        if (suggestionsArray.length > 0) {
+          // Convert AI suggestions to GroceryItem format
+          const newItems = suggestionsArray.map((suggestion: any, index: number) => {
+            const name = suggestion.name || suggestion.item_name || 'Unknown Item';
+            const category = suggestion.category || suggestion.section || null;
+            const quantity = suggestion.quantity ?? 1;
+            const unit = suggestion.unit || suggestion.units || null;
+            const cookingUses = Array.isArray(suggestion.cookingUses) ? suggestion.cookingUses : (suggestion.cooking_uses || []);
+            const storageTips = suggestion.storageTips || suggestion.storage_tips || '';
+            const nutritionalHighlights = Array.isArray(suggestion.nutritionalHighlights) ? suggestion.nutritionalHighlights : (suggestion.nutritional_highlights || []);
+
+            return {
+              id: Date.now() + index, // Generate unique IDs
+              item_name: name,
+              item_description: `${cookingUses.join(', ')}. Storage: ${storageTips}. Nutrition: ${nutritionalHighlights.join(', ')}`,
+              quantity,
+              unit,
+              priority: 'normal' as const,
+              section: category,
+              household: { name: 'AI Suggested' },
+              requester: { full_name: 'AI Assistant' },
+              approver: null,
+              is_purchased: false,
+              is_accepted: false,
+              status: 'pending' as const
+            } as GroceryItem;
+          });
+          
+          console.log('Generated new items:', newItems);
+          
+          // Add AI suggestions to the list
+          setItems(prev => {
+            console.log('Previous items:', prev.length);
+            const updatedItems = [...prev, ...newItems];
+            console.log('Updated items:', updatedItems.length);
+            return updatedItems;
+          });
+          
+          toast.success(`${newItems.length} AI suggestions added to your list!`);
+        } else {
+          console.log('No suggestions in array');
+        }
+        
+        // Clear suggestions from localStorage
+        localStorage.removeItem('grocerySuggestions');
+      } catch (error) {
+        console.error('Error processing AI suggestions:', error);
+        toast.error('Failed to process AI suggestions');
+      }
+    } else {
+      console.log('No AI suggestions found in localStorage');
+    }
+  };
 
   const loadGroceryList = async () => {
     if (!user?.id) return;

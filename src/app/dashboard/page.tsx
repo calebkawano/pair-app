@@ -35,10 +35,31 @@ export default function DashboardHome() {
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
   const [shoppingListCount] = useState(7); // Mock data  
   const [showRecentMeals, setShowRecentMeals] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [wittyMessage, setWittyMessage] = useState<string>('Welcome to your dashboard!');
   const supabase = createClient();
   const router = useRouter();
 
   useEffect(() => {
+    setMounted(true);
+    
+    // Generate the witty message once when component mounts
+    const messages = [
+      "Looks like you reallyyy like chicken 🐔",
+      "Time to add some more veggies to your life! 🥕",
+      "Your pasta game is strong, but variety is the spice of life ✨",
+      "We see you avoiding those greens... 👀🥬",
+      "Chicken again? Your taste buds might be getting bored! 😄",
+      "Your shopping cart needs more colors - think rainbow! 🌈",
+      "Beef enthusiast detected! Maybe try some fish? 🐟",
+      "Your sweet tooth is showing - balance is key! 🍎",
+      "You're practically a pasta connoisseur at this point! 🍝",
+      "Time to venture beyond your comfort foods! 🌟"
+    ];
+    
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    setWittyMessage(randomMessage);
+    
     loadUserData();
   }, []);
 
@@ -77,24 +98,6 @@ export default function DashboardHome() {
     router.push('/dashboard/meals');
   };
 
-  // Generate witty messages based on user patterns
-  const getWittyMessage = () => {
-    const messages = [
-      "Looks like you reallyyy like chicken 🐔",
-      "Time to add some more veggies to your life! 🥕",
-      "Your pasta game is strong, but variety is the spice of life ✨",
-      "We see you avoiding those greens... 👀🥬",
-      "Chicken again? Your taste buds might be getting bored! 😄",
-      "Your shopping cart needs more colors - think rainbow! 🌈",
-      "Beef enthusiast detected! Maybe try some fish? 🐟",
-      "Your sweet tooth is showing - balance is key! 🍎",
-      "You're practically a pasta connoisseur at this point! 🍝",
-      "Time to venture beyond your comfort foods! 🌟"
-    ];
-    
-    return messages[Math.floor(Math.random() * messages.length)];
-  };
-
   const getUserDisplayName = () => {
     if (profile?.full_name) return profile.full_name;
     if (user?.email) return user.email.split('@')[0];
@@ -110,7 +113,7 @@ export default function DashboardHome() {
             Hey {getUserDisplayName()}! 👋
           </h1>
           <p className="text-muted-foreground">
-            {getWittyMessage()}
+            {mounted ? wittyMessage : 'Welcome to your dashboard!'}
           </p>
         </div>
 

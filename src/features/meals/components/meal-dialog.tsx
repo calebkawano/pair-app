@@ -86,17 +86,24 @@ export function MealDialog({ meal, isOpen, onClose, onNext }: MealDialogProps) {
           )}
 
           <div className="flex gap-2 flex-wrap">
-            {meal.dietaryTags.map((tag) => {
-              const dietaryTag = dietaryTags[tag] as DietaryTag;
-              return (
+            {meal.dietaryTags
+              .map((tag) => {
+                const dietaryTag = dietaryTags[tag] as DietaryTag;
+                if (!dietaryTag) {
+                  console.warn(`Dietary tag "${tag}" not found in dietaryTags`);
+                  return null;
+                }
+                return { tag, dietaryTag };
+              })
+              .filter((item): item is { tag: string; dietaryTag: DietaryTag } => item !== null)
+              .map(({ tag, dietaryTag }) => (
                 <span
                   key={tag}
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm ${dietaryTag.color} bg-opacity-10`}
                 >
                   {dietaryTag.icon} {dietaryTag.label}
                 </span>
-              );
-            })}
+              ))}
           </div>
 
           <div className="space-y-4">
