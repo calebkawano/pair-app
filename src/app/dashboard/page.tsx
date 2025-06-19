@@ -1,6 +1,7 @@
 'use client';
 
 import { RecentMealsDialog } from "@/features/meals/components/recent-meals-dialog";
+import { getShoppingItemCount } from "@/lib/supabase/actions";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -33,7 +34,8 @@ export default function DashboardHome() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
-  const [shoppingListCount] = useState(7); // Mock data  
+  const [shoppingListCount, setShoppingListCount] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [showRecentMeals, setShowRecentMeals] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [wittyMessage, setWittyMessage] = useState<string>('Welcome to your dashboard!');
@@ -88,6 +90,39 @@ export default function DashboardHome() {
 
     if (mealsData) {
       setRecentMeals(mealsData);
+    }
+
+    // Load shopping list count and last updated
+    try {
+      const count = await getShoppingItemCount(user.id);
+      setShoppingListCount(count);
+
+      // Get the most recent food request
+      const { data: latestRequest } = await supabase
+        .from('food_requests')
+        .select('created_at')
+        .in('status', ['pending', 'approved'])
+        .eq('is_purchased', false)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (latestRequest?.[0]) {
+        const lastUpdateDate = new Date(latestRequest[0].created_at);
+        const now = new Date();
+        const diffInDays = Math.floor((now.getTime() - lastUpdateDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffInDays === 0) {
+          setLastUpdated('Today');
+        } else if (diffInDays === 1) {
+          setLastUpdated('Yesterday');
+        } else {
+          setLastUpdated(`${diffInDays} days ago`);
+        }
+      } else {
+        setLastUpdated(null);
+      }
+    } catch (error) {
+      console.error('Error loading shopping list data:', error);
     }
   };
 
@@ -162,13 +197,15 @@ export default function DashboardHome() {
                 Shopping Lists
               </CardTitle>
               <CardDescription>
-                {shoppingListCount} items on your list
+                {shoppingListCount} {shoppingListCount === 1 ? 'item' : 'items'} on your list
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="font-medium text-sm">Weekly Groceries</p>
-                <p className="text-xs text-muted-foreground">Last updated 2 days ago</p>
+                <p className="text-xs text-muted-foreground">
+                  {lastUpdated ? `Last updated ${lastUpdated}` : 'No items yet'}
+                </p>
               </div>
               <Link href="/dashboard/grocery">
                 <Button variant="secondary" className="w-full gap-2">

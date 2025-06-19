@@ -150,4 +150,36 @@ export async function createRecentMeal(userId: string, mealData: any) {
     throw error
   }
   return data[0]
+}
+
+export async function getShoppingItemCount(userId: string) {
+  const supabase = await createClient();
+  
+  // Get all lists for the user's households
+  const { data: householdMembers, error: memberError } = await supabase
+    .from('household_members')
+    .select('household_id')
+    .eq('user_id', userId);
+
+  if (memberError) {
+    console.error('Error fetching household members:', memberError);
+    throw memberError;
+  }
+
+  const householdIds = householdMembers?.map(member => member.household_id) || [];
+
+  // Get count of unpurchased items (approved) from all household lists
+  const { count, error: countError } = await supabase
+    .from('food_requests')
+    .select('*', { count: 'exact', head: true })
+    .in('status', ['approved'])
+    .eq('is_purchased', false)
+    .in('household_id', householdIds);
+
+  if (countError) {
+    console.error('Error counting list items:', countError);
+    throw countError;
+  }
+
+  return count || 0;
 } 
