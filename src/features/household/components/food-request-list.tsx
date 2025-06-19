@@ -19,7 +19,11 @@ interface FoodRequest {
   status: 'pending' | 'approved' | 'declined';
   created_at: string;
   requested_by: string;
-  profiles: {
+  approved_by?: string;
+  requester: {
+    full_name: string;
+  } | null;
+  approver: {
     full_name: string;
   } | null;
 }
@@ -43,52 +47,110 @@ export function FoodRequestList({ householdId, isAdmin }: FoodRequestListProps) 
     try {
       setLoading(true);
       
-      console.log('Loading food requests for household:', householdId);
+      // First verify authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
       
-      // First, let's check if we can access the food_requests table at all
-      const { data: testData, error: testError } = await supabase
-        .from('food_requests')
-        .select('count(*)', { count: 'exact', head: true });
-
-      if (testError) {
-        console.error('Cannot access food_requests table:', {
-          message: testError.message || 'No message',
-          details: testError.details || 'No details',
-          hint: testError.hint || 'No hint',
-          code: testError.code || 'No code',
-          errorString: testError.toString(),
-          errorKeys: Object.keys(testError),
-          fullError: JSON.stringify(testError, null, 2)
-        });
-        throw new Error(`Table access error: ${testError.message || 'Unknown table error'}`);
+      if (authError) {
+        console.error('Authentication error:', authError);
+        throw new Error('Authentication failed. Please log in again.');
       }
 
-      console.log('Table access test successful, count:', testData);
+      if (!user) {
+        console.error('No authenticated user found');
+        throw new Error('Please log in to view food requests.');
+      }
+
+      console.log('Loading food requests for household:', householdId, 'user:', user.id);
+
+      // Verify household membership first
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('household_members')
+        .select('role')
+        .eq('household_id', householdId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (membershipError) {
+        console.error('Membership check error:', {
+          error: membershipError,
+          message: membershipError.message,
+          details: membershipError.details,
+          hint: membershipError.hint,
+          code: membershipError.code
+        });
+        throw new Error('Failed to verify household membership');
+      }
+
+      if (!membershipData) {
+        console.error('User is not a member of this household');
+        throw new Error('You are not a member of this household');
+      }
+
+      console.log('Membership verified:', membershipData);
       
+      // Log the household ID and its type
+      console.log('Querying with householdId:', {
+        value: householdId,
+        type: typeof householdId,
+        isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(householdId)
+      });
+
+      // First try a simple query to verify table access
+      const { data: testData, error: testError } = await supabase
+        .from('food_requests')
+        .select('id')
+        .limit(1);
+
+      if (testError) {
+        console.error('Initial food requests test query failed:', {
+          error: testError,
+          message: testError.message,
+          details: testError.details,
+          hint: testError.hint,
+          code: testError.code
+        });
+      } else {
+        console.log('Initial food requests test query succeeded:', testData);
+      }
+
+      // Now try the full query
       const { data, error } = await supabase
         .from('food_requests')
-        .select(`
-          *,
-          profiles (
-            full_name
-          )
-        `)
-        .eq('household_id', householdId)
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: false });
+        .select('*')
+        .eq('household_id', householdId);
 
       if (error) {
-        console.error('Supabase error details:', {
+        // Log the full error object
+        console.error('Food requests query error:', {
+          error,
           message: error.message || 'No message',
           details: error.details || 'No details',
           hint: error.hint || 'No hint',
           code: error.code || 'No code',
-          householdId: householdId,
+          householdId,
+          userId: user.id,
           errorString: error.toString(),
           errorKeys: Object.keys(error),
-          fullError: JSON.stringify(error, null, 2)
+          fullError: JSON.stringify(error, null, 2),
+          // Additional debugging info
+          query: {
+            table: 'food_requests',
+            filter: { household_id: householdId }
+          }
         });
-        throw new Error(`Query error: ${error.message || 'Unknown query error'}`);
+
+        // Try to get more specific error information
+        if (error instanceof Error) {
+          console.error('Error instance details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            // Try to access potential Supabase-specific properties
+            ...(error as any)
+          });
+        }
+
+        throw new Error(`Failed to load food requests: ${error.message || 'Unknown error'}`);
       }
 
       console.log('Raw food requests data:', data);
@@ -99,14 +161,37 @@ export function FoodRequestList({ householdId, isAdmin }: FoodRequestListProps) 
         return;
       }
 
-      console.log('Setting requests:', data);
-      setRequests(data as FoodRequest[]);
+      // If we got data, try the full query with profiles
+      const { data: fullData, error: fullError } = await supabase
+        .from('food_requests')
+        .select(`
+          *,
+          requester:profiles!food_requests_requested_by_fkey (
+            full_name
+          ),
+          approver:profiles!food_requests_approved_by_fkey (
+            full_name
+          )
+        `)
+        .eq('household_id', householdId)
+        .order('priority', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (fullError) {
+        console.error('Full query with profiles failed:', fullError);
+        // Fall back to the simple data we already have
+        setRequests(data as FoodRequest[]);
+        return;
+      }
+
+      console.log('Setting requests:', fullData || data);
+      setRequests((fullData || data) as FoodRequest[]);
     } catch (error) {
       console.error('Error loading requests:', {
         error,
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
-        householdId: householdId,
+        householdId,
         errorString: error?.toString(),
         errorType: typeof error,
         errorConstructor: error?.constructor?.name
@@ -118,6 +203,10 @@ export function FoodRequestList({ householdId, isAdmin }: FoodRequestListProps) 
           toast.error('Food requests table does not exist. Please contact support.');
         } else if (error.message.includes('permission denied')) {
           toast.error('You do not have permission to view food requests for this household.');
+        } else if (error.message.includes('Please log in')) {
+          toast.error('Please log in to view food requests.');
+        } else if (error.message.includes('not a member')) {
+          toast.error('You are not a member of this household.');
         } else {
           toast.error(`Failed to load food requests: ${error.message}`);
         }
@@ -218,7 +307,7 @@ export function FoodRequestList({ householdId, isAdmin }: FoodRequestListProps) 
                 </div>
                 
                 <p className="text-sm text-muted-foreground">
-                  Requested by {request.profiles?.full_name || 'Unknown'}
+                  Requested by {request.requester?.full_name || 'Unknown'}
                 </p>
                 
                 {request.item_description && (
