@@ -1,33 +1,55 @@
 import { createClient } from '@/lib/supabase/server';
+import { GroceryItem } from '@/types/grocery';
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
+import { z } from 'zod';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-interface UserPreferences {
-  dietaryGoal: string;
-  favoriteFood: string;
-  cookingTime: string;
-  budget: string;
-  shoppingFrequency: string;
-  favoriteStores: string;
-  avoidStores: string;
-  servingCount: string;
-}
+// Validation schema for user preferences
+const userPreferencesSchema = z.object({
+  dietaryGoal: z.string().min(1),
+  favoriteFood: z.string().min(1),
+  cookingTime: z.string().min(1),
+  budget: z.string().min(1),
+  shoppingFrequency: z.string().min(1),
+  favoriteStores: z.string().min(1),
+  avoidStores: z.string(),
+  servingCount: z.string().min(1),
+});
 
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-    const { preferences } = await req.json() as { preferences: UserPreferences };
+    const body = await req.json();
+
+    // Validate request body
+    const validationResult = userPreferencesSchema.safeParse(body.preferences);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid preferences', details: validationResult.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const preferences = validationResult.data;
 
     // Get user's past preferences
-    const { data: userPreferences } = await supabase
+    const { data: userPreferences, error: preferencesError } = await supabase
       .from('item_preferences')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
+
+    if (preferencesError) {
+      console.error('Error fetching user preferences:', preferencesError);
+      return NextResponse.json(
+        { error: 'Failed to fetch user preferences' },
+        { status: 500 }
+      );
+    }
 
     // Format past preferences for AI context
     const pastPreferences = userPreferences?.map(pref => 
@@ -91,19 +113,22 @@ Format the response as a JSON array of objects with these exact fields:
       temperature: 0.9,
     });
 
-    let suggestions;
+    let suggestions: { items: GroceryItem[] };
     try {
       suggestions = JSON.parse(completion.choices[0].message.content || '{"items": []}');
     } catch (error) {
       console.error('Error parsing OpenAI response:', error);
-      suggestions = { items: [] };
+      return NextResponse.json(
+        { error: 'Failed to parse AI suggestions' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(suggestions);
   } catch (error) {
     console.error('Error generating shopping list:', error);
     return NextResponse.json(
-      { error: 'Failed to generate shopping list' },
+      { error: 'Failed to generate shopping list', details: error instanceof Error ? error.message : undefined },
       { status: 500 }
     );
   }

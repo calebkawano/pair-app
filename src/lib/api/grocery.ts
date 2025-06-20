@@ -1,23 +1,14 @@
-interface UserPreferences {
-  dietaryGoal: string;
-  favoriteFood: string;
-  cookingTime: string;
-  budget: string;
-  shoppingFrequency: string;
-  favoriteStores: string;
-  avoidStores: string;
-  servingCount: string;
-}
+import { GroceryItem, UserPreferences } from '@/types/grocery';
 
-interface GroceryItem {
-  name: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  priceRange: string;
-  cookingUses: string[];
-  storageTips: string;
-  nutritionalHighlights: string[];
+export class GroceryApiError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode?: number,
+    public readonly details?: any
+  ) {
+    super(message);
+    this.name = 'GroceryApiError';
+  }
 }
 
 export async function getGrocerySuggestions(preferences: UserPreferences): Promise<GroceryItem[]> {
@@ -31,13 +22,23 @@ export async function getGrocerySuggestions(preferences: UserPreferences): Promi
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get grocery suggestions');
+      const errorData = await response.json().catch(() => ({}));
+      throw new GroceryApiError(
+        errorData.error || 'Failed to get grocery suggestions',
+        response.status,
+        errorData
+      );
     }
 
     const data = await response.json();
     return data.items;
   } catch (error) {
+    if (error instanceof GroceryApiError) {
+      throw error;
+    }
     console.error('Error getting grocery suggestions:', error);
-    throw error;
+    throw new GroceryApiError(
+      error instanceof Error ? error.message : 'Failed to get grocery suggestions'
+    );
   }
 } 

@@ -495,10 +495,6 @@ export default function GroceryListPage() {
             Manage your household grocery shopping list. Check off items as you buy them.
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </Button>
       </div>
 
       {items.length === 0 ? (
@@ -513,7 +509,13 @@ export default function GroceryListPage() {
           {/* Unpurchased Items */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">To Buy</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold">To Buy</h2>
+                <Button onClick={() => setShowAddDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </div>
               <div className="flex items-center gap-4">
                 {/* Section Filter */}
                 <div className="flex items-center gap-2">

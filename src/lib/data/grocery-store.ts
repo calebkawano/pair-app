@@ -1,3 +1,12 @@
+import { GroceryItem, StoreSection } from '@/types/grocery';
+
+export class GroceryStoreError extends Error {
+  constructor(message: string, public readonly details?: any) {
+    super(message);
+    this.name = 'GroceryStoreError';
+  }
+}
+
 export interface GroceryItem {
   id: number;
   name: string;
@@ -23,64 +32,77 @@ class GroceryStoreService {
     return GroceryStoreService.instance;
   }
 
-  async loadData(): Promise<void> {
+  private async ensureDataLoaded(): Promise<void> {
     if (this.isLoaded) return;
     
     try {
       const response = await fetch('/data/grocery_data.json');
-      if (!response.ok) throw new Error('Failed to load grocery data');
+      if (!response.ok) {
+        throw new GroceryStoreError(`Failed to load grocery data: ${response.statusText}`);
+      }
       this.data = await response.json();
       this.isLoaded = true;
     } catch (error) {
       console.error('Error loading grocery data:', error);
-      throw error;
+      throw new GroceryStoreError(
+        'Failed to load grocery data',
+        error instanceof Error ? error.message : undefined
+      );
     }
   }
 
   async getItems(): Promise<GroceryItem[]> {
-    await this.loadData();
+    await this.ensureDataLoaded();
     return this.data;
   }
 
-  async getItemsByCategory(category: string): Promise<GroceryItem[]> {
-    await this.loadData();
+  async getItemsByCategory(category: StoreSection): Promise<GroceryItem[]> {
+    await this.ensureDataLoaded();
     return this.data.filter(item => item.category === category);
   }
 
   async searchItems(query: string): Promise<GroceryItem[]> {
-    await this.loadData();
+    await this.ensureDataLoaded();
     const lowercaseQuery = query.toLowerCase();
     return this.data.filter(item => 
       item.name.toLowerCase().includes(lowercaseQuery) ||
-      item.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
+      item.tags?.some(tag => tag.toLowerCase().includes(lowercaseQuery))
     );
   }
 
   async getItemById(id: number): Promise<GroceryItem | undefined> {
-    await this.loadData();
+    await this.ensureDataLoaded();
     return this.data.find(item => item.id === id);
   }
 
-  async getCategories(): Promise<string[]> {
-    await this.loadData();
-    return [...new Set(this.data.map(item => item.category))];
+  async getCategories(): Promise<StoreSection[]> {
+    await this.ensureDataLoaded();
+    return [...new Set(this.data.map(item => item.category))] as StoreSection[];
   }
 
   async getInStockItems(): Promise<GroceryItem[]> {
-    await this.loadData();
-    return this.data.filter(item => item.stock > 0);
+    await this.ensureDataLoaded();
+    return this.data.filter(item => item.stock && item.stock > 0);
   }
 
   async getItemsByPriceRange(min: number, max: number): Promise<GroceryItem[]> {
-    await this.loadData();
-    return this.data.filter(item => item.price >= min && item.price <= max);
+    await this.ensureDataLoaded();
+    return this.data.filter(item => {
+      const price = item.price ?? 0;
+      return price >= min && price <= max;
+    });
   }
 
   // Simulate price updates (in a real app, this would come from the store's API)
   async getUpdatedPrice(itemId: number): Promise<number> {
-    await this.loadData();
+    await this.ensureDataLoaded();
     const item = await this.getItemById(itemId);
-    if (!item) throw new Error('Item not found');
+    if (!item) {
+      throw new GroceryStoreError('Item not found');
+    }
+    if (!item.price) {
+      throw new GroceryStoreError('Item has no price information');
+    }
     
     // Simulate price fluctuation (±10%)
     const variation = 0.9 + Math.random() * 0.2;

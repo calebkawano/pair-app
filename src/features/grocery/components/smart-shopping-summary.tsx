@@ -1,7 +1,9 @@
 import { getOptimalRoute, optimizeShoppingList } from "@/lib/pricing/price-service";
+import { ShoppingOptimization, SmartShoppingSummaryProps } from "@/types/components";
 import { Card } from "@/ui/card";
 import { Clock, MapPin, PiggyBank } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface GroceryItem {
   id: number;
@@ -23,18 +25,7 @@ interface GroceryItem {
   is_purchased?: boolean;
 }
 
-interface SmartShoppingSummaryProps {
-  items: GroceryItem[];
-}
-
-interface ShoppingOptimization {
-  recommendedStore: string;
-  totalSavings: number;
-  itemsByStore: Record<string, GroceryItem[]>;
-  optimalRoute: GroceryItem[];
-}
-
-export function SmartShoppingSummary({ items }: SmartShoppingSummaryProps) {
+export function SmartShoppingSummary({ items, onOptimizationComplete }: SmartShoppingSummaryProps) {
   const [optimization, setOptimization] = useState<ShoppingOptimization | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +33,7 @@ export function SmartShoppingSummary({ items }: SmartShoppingSummaryProps) {
     async function optimizeList() {
       if (items.length === 0) {
         setOptimization(null);
+        onOptimizationComplete?.(null);
         return;
       }
 
@@ -50,21 +42,27 @@ export function SmartShoppingSummary({ items }: SmartShoppingSummaryProps) {
         const { recommendedStore, totalSavings, itemsByStore } = await optimizeShoppingList(items);
         const optimalRoute = getOptimalRoute(itemsByStore[recommendedStore] || []);
         
-        setOptimization({
+        const newOptimization = {
           recommendedStore,
           totalSavings,
           itemsByStore,
           optimalRoute
-        });
+        };
+        
+        setOptimization(newOptimization);
+        onOptimizationComplete?.(newOptimization);
       } catch (error) {
         console.error('Error optimizing shopping list:', error);
+        toast.error('Failed to optimize shopping list. Please try again later.');
+        setOptimization(null);
+        onOptimizationComplete?.(null);
       } finally {
         setLoading(false);
       }
     }
 
     optimizeList();
-  }, [items]);
+  }, [items, onOptimizationComplete]);
 
   // Skip if no items or still loading initial optimization
   if (items.length === 0 || !optimization) return null;
@@ -166,9 +164,21 @@ export function SmartShoppingSummary({ items }: SmartShoppingSummaryProps) {
             <p className="text-sm text-muted-foreground">
               Save approx ${totalSavings.toFixed(2)} with this route
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Based on current store prices
-            </p>
+            <div className="flex flex-col gap-1 mt-2">
+              <p className="text-xs text-muted-foreground">
+                • {totalItems} total items
+              </p>
+              {heavyItems > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  • {heavyItems} heavy items
+                </p>
+              )}
+              {temperatureSensitive > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  • {temperatureSensitive} temperature-sensitive items
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

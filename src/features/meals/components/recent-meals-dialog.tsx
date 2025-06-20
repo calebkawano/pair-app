@@ -2,13 +2,13 @@
 
 import { Button } from "@/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/ui/dialog";
-import { Star, Utensils, X } from "lucide-react";
+import { Star, Utensils } from "lucide-react";
 import { useState } from "react";
 import { MealDialog } from "./meal-dialog";
 
@@ -75,9 +75,6 @@ export function RecentMealsDialog({
               <div className="flex gap-2">
                 <Button variant="outline" onClick={onGoToMeals}>
                   More Quick Meals
-                </Button>
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
