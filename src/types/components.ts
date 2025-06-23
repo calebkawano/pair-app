@@ -10,7 +10,7 @@ export interface GroceryListProps {
 
 export interface SmartShoppingSummaryProps {
   items: GroceryItem[];
-  onOptimizationComplete?: (optimization: ShoppingOptimization) => void;
+  onOptimizationComplete?: (optimization: ShoppingOptimization | null) => void;
 }
 
 export interface ShoppingOptimization {

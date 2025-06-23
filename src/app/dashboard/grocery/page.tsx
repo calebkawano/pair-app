@@ -170,7 +170,7 @@ export default function GroceryListPage() {
     try {
       setLoading(true);
       const data = await getFoodRequests(user.id);
-      setItems(data as GroceryItem[]);
+      setItems(data as unknown as GroceryItem[]);
     } catch (error) {
       console.error('Error loading grocery list:', error);
       toast.error('Failed to load grocery list. Please try again.');
@@ -504,7 +504,11 @@ export default function GroceryListPage() {
       ) : (
         <div className="space-y-8">
           {/* Smart Shopping Summary */}
-          <SmartShoppingSummary items={unpurchasedItems} />
+          <SmartShoppingSummary items={unpurchasedItems.map(item => ({
+            ...item,
+            name: item.item_name,
+            category: item.section || 'Uncategorized'
+          }))} />
 
           {/* Unpurchased Items */}
           <div className="space-y-4">

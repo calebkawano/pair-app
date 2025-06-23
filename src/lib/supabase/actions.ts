@@ -1,8 +1,13 @@
 'use server'
 
-import { createClient } from './server'
+import { FoodRequest, HouseholdMember } from '@/types/database';
+import { createClient, SupabaseError } from './server';
 
-export async function getFoodRequests(userId: string) {
+export async function getFoodRequests(userId: string): Promise<FoodRequest[]> {
+  if (!userId) {
+    throw new SupabaseError('User ID is required');
+  }
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('food_requests')
@@ -13,16 +18,22 @@ export async function getFoodRequests(userId: string) {
       approver:profiles!food_requests_approved_by_fkey(full_name)
     `)
     .in('status', ['approved', 'pending'])
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) {
     console.error('Error fetching food requests:', error)
-    throw error
+    throw new SupabaseError('Failed to fetch food requests', error.code, error.message)
   }
-  return data
+  
+  return data as FoodRequest[]
 }
 
-export async function getHouseholdMembers(userId: string) {
+export async function getHouseholdMembers(userId: string): Promise<HouseholdMember[]> {
+  if (!userId) {
+    throw new SupabaseError('User ID is required');
+  }
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('household_members')
@@ -31,16 +42,17 @@ export async function getHouseholdMembers(userId: string) {
       household:households(
         id,
         name,
-        description
+        color
       )
     `)
     .eq('user_id', userId)
 
   if (error) {
     console.error('Error fetching household members:', error)
-    throw error
+    throw new SupabaseError('Failed to fetch household members', error.code, error.message)
   }
-  return data
+  
+  return data as HouseholdMember[]
 }
 
 export async function createList(userId: string, name: string) {
@@ -88,21 +100,55 @@ export async function deleteList(listId: string) {
   if (error) throw error
 }
 
-export async function createAIFoodRequests(userId: string, items: any[]) {
+export async function createAIFoodRequests(
+  userId: string, 
+  items: Array<{
+    name: string;
+    category: string;
+    quantity: number;
+    unit: string;
+    cooking_versatility?: string;
+    storage_tips?: string;
+    nutritional_highlights?: string[];
+  }>
+): Promise<FoodRequest[]> {
+  if (!userId) {
+    throw new SupabaseError('User ID is required');
+  }
+
+  if (!items || items.length === 0) {
+    throw new SupabaseError('Items array is required and cannot be empty');
+  }
+
   const supabase = await createClient();
   
+  // Get user's default household
+  const { data: householdMembers, error: memberError } = await supabase
+    .from('household_members')
+    .select('household_id')
+    .eq('user_id', userId)
+    .limit(1);
+
+  if (memberError || !householdMembers?.length) {
+    throw new SupabaseError('User must be a member of at least one household');
+  }
+
   // Transform AI suggestions into food requests
   const foodRequests = items.map(item => ({
-    user_id: userId,
+    household_id: householdMembers[0].household_id,
+    requested_by: userId,
     item_name: item.name,
-    item_description: `${item.cooking_versatility}\n\nStorage: ${item.storage_tips}\n\nNutrition: ${item.nutritional_highlights}`,
+    item_description: [
+      item.cooking_versatility && `Cooking: ${item.cooking_versatility}`,
+      item.storage_tips && `Storage: ${item.storage_tips}`,
+      item.nutritional_highlights?.length && `Nutrition: ${item.nutritional_highlights.join(', ')}`
+    ].filter(Boolean).join('\n\n') || null,
     quantity: item.quantity,
     unit: item.unit,
     section: item.category,
-    priority: 'normal',
-    status: 'pending',
-    requested_by: userId,
-    created_at: new Date().toISOString()
+    priority: 'normal' as const,
+    status: 'approved' as const, // Auto-approve AI suggestions
+    is_manual: false,
   }));
 
   const { data, error } = await supabase
@@ -112,13 +158,17 @@ export async function createAIFoodRequests(userId: string, items: any[]) {
 
   if (error) {
     console.error('Error creating AI food requests:', error);
-    throw error;
+    throw new SupabaseError('Failed to create AI food requests', error.code, error.message);
   }
 
-  return data;
+  return data as FoodRequest[];
 }
 
 export async function getRecentMeals(userId: string) {
+  if (!userId) {
+    throw new SupabaseError('User ID is required');
+  }
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('recent_meals')
@@ -129,12 +179,21 @@ export async function getRecentMeals(userId: string) {
 
   if (error) {
     console.error('Error fetching recent meals:', error)
-    throw error
+    throw new SupabaseError('Failed to fetch recent meals', error.code, error.message)
   }
+  
   return data
 }
 
 export async function createRecentMeal(userId: string, mealData: any) {
+  if (!userId) {
+    throw new SupabaseError('User ID is required');
+  }
+
+  if (!mealData || !mealData.meal_name) {
+    throw new SupabaseError('Meal data with meal_name is required');
+  }
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('recent_meals')
@@ -147,15 +206,20 @@ export async function createRecentMeal(userId: string, mealData: any) {
 
   if (error) {
     console.error('Error creating recent meal:', error)
-    throw error
+    throw new SupabaseError('Failed to create recent meal', error.code, error.message)
   }
+  
   return data[0]
 }
 
-export async function getShoppingItemCount(userId: string) {
+export async function getShoppingItemCount(userId: string): Promise<number> {
+  if (!userId) {
+    throw new SupabaseError('User ID is required');
+  }
+
   const supabase = await createClient();
   
-  // Get all lists for the user's households
+  // Get all households for the user
   const { data: householdMembers, error: memberError } = await supabase
     .from('household_members')
     .select('household_id')
@@ -163,10 +227,14 @@ export async function getShoppingItemCount(userId: string) {
 
   if (memberError) {
     console.error('Error fetching household members:', memberError);
-    throw memberError;
+    throw new SupabaseError('Failed to fetch household members', memberError.code, memberError.message);
   }
 
   const householdIds = householdMembers?.map(member => member.household_id) || [];
+
+  if (householdIds.length === 0) {
+    return 0;
+  }
 
   // Get count of unpurchased items (approved) from all household lists
   const { count, error: countError } = await supabase
@@ -174,12 +242,35 @@ export async function getShoppingItemCount(userId: string) {
     .select('*', { count: 'exact', head: true })
     .in('status', ['approved'])
     .eq('is_purchased', false)
+    .is('deleted_at', null)
     .in('household_id', householdIds);
 
   if (countError) {
     console.error('Error counting list items:', countError);
-    throw countError;
+    throw new SupabaseError('Failed to count shopping items', countError.code, countError.message);
   }
 
   return count || 0;
+}
+
+export async function softDeleteFoodRequest(requestId: number, userId: string): Promise<void> {
+  if (!requestId || !userId) {
+    throw new SupabaseError('Request ID and User ID are required');
+  }
+
+  const supabase = await createClient();
+  
+  const { error } = await supabase
+    .from('food_requests')
+    .update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: userId
+    })
+    .eq('id', requestId)
+    .eq('requested_by', userId); // Only allow users to delete their own requests
+
+  if (error) {
+    console.error('Error soft deleting food request:', error);
+    throw new SupabaseError('Failed to delete food request', error.code, error.message);
+  }
 } 

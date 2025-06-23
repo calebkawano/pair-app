@@ -7,16 +7,6 @@ export class GroceryStoreError extends Error {
   }
 }
 
-export interface GroceryItem {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  unit: string;
-  stock: number;
-  tags: string[];
-}
-
 // This simulates API endpoints we'd have in a real backend
 class GroceryStoreService {
   private static instance: GroceryStoreService;
