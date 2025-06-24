@@ -31,7 +31,8 @@ export default function MealsPage() {
   const [currentMealIndex, setCurrentMealIndex] = useState(0);
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingRandom, setIsGeneratingRandom] = useState(false);
+  const [isGeneratingGroceries, setIsGeneratingGroceries] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -82,7 +83,6 @@ export default function MealsPage() {
   };
 
   const generateMealForCategory = async (category: MealCategory) => {
-    setIsGenerating(true);
     try {
       // This would call your meal generation API with the category
       const response = await fetch('/api/meal-suggestions', {
@@ -104,7 +104,7 @@ export default function MealsPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to generate meal suggestion');
       setSelectedCategory(null);
     } finally {
-      setIsGenerating(false);
+      /* no-op */
     }
   };
 
@@ -174,7 +174,7 @@ export default function MealsPage() {
   };
 
   const generateRandomMeal = async () => {
-    setIsGenerating(true);
+    setIsGeneratingRandom(true);
     try {
       const response = await fetch('/api/meal-suggestions', {
         method: 'POST'
@@ -192,12 +192,12 @@ export default function MealsPage() {
       console.error('Error generating meal:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate meal suggestion');
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingRandom(false);
     }
   };
 
   const generateMealFromGroceries = async () => {
-    setIsGenerating(true);
+    setIsGeneratingGroceries(true);
     try {
       const response = await fetch('/api/meal-suggestions', {
         method: 'POST'
@@ -215,7 +215,7 @@ export default function MealsPage() {
       console.error('Error generating meal:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate meal suggestion');
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingGroceries(false);
     }
   };
 
@@ -263,9 +263,9 @@ export default function MealsPage() {
             variant="outline"
             className="h-24 flex flex-col gap-2"
             onClick={generateRandomMeal}
-            disabled={isGenerating}
+            disabled={isGeneratingRandom || isGeneratingGroceries}
           >
-            {isGenerating ? (
+            {isGeneratingRandom ? (
               <Loader2 className="h-6 w-6 animate-spin" />
             ) : (
               <Dice6 className="h-6 w-6" />
@@ -278,9 +278,9 @@ export default function MealsPage() {
           <Button
             className="h-24 flex flex-col gap-2"
             onClick={generateMealFromGroceries}
-            disabled={isGenerating}
+            disabled={isGeneratingRandom || isGeneratingGroceries}
           >
-            {isGenerating ? (
+            {isGeneratingGroceries ? (
               <Loader2 className="h-6 w-6 animate-spin" />
             ) : (
               <ChefHat className="h-6 w-6" />
@@ -388,6 +388,7 @@ export default function MealsPage() {
           onSwipeLeft={handleSwipeLeft}
           onSwipeRight={handleSwipeRight}
           onClose={handleCloseMealCard}
+          showAddToCart={selectedCategory?.id === 'random'}
         />
       )}
     </main>
