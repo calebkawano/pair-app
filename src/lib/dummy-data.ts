@@ -1,12 +1,3 @@
-export interface GroceryItem {
-  id: string;
-  name: string;
-  store: string;
-  isChecked: boolean;
-  quantity?: string;
-  notes?: string;
-}
-
 export interface SmartSummary {
   stores: string[];
   totalItems: number;
@@ -138,28 +129,28 @@ export const dietBasedCategories: MealCategory[] = [
     id: 'high-protein',
     name: 'High Protein',
     description: 'Power up with protein-rich meals',
-    imageUrl: '/images/categories/diet/high-protein.jpg.png',
+    imageUrl: '/images/categories/diet/high-protein.png',
     meals: [] // Will be populated with actual meals
   },
   {
     id: 'vegan',
     name: 'Vegan',
     description: 'Plant-based goodness',
-    imageUrl: '/images/categories/diet/vegan.jgp.png',
+    imageUrl: '/images/categories/diet/vegan.png',
     meals: []
   },
   {
     id: 'vegetarian',
     name: 'Vegetarian',
     description: 'Meat-free delicious options',
-    imageUrl: '/images/categories/diet/vegetarian.jpg.png',
+    imageUrl: '/images/categories/diet/vegetarian.png',
     meals: []
   },
   {
     id: 'keto',
     name: 'Keto',
     description: 'Low-carb, high-fat favorites',
-    imageUrl: '/images/categories/diet/keto.jpg.png',
+    imageUrl: '/images/categories/diet/keto.png',
     meals: []
   },
   {
@@ -291,6 +282,101 @@ export const cuisineCategories: MealCategory[] = [
     description: 'BBQ, kimchi, bibimbap',
     imageUrl: '/images/categories/cuisine/korean.png',
     meals: []
+  },
+  {
+    id: 'french',
+    name: 'French',
+    description: 'Elegant bistro classics',
+    imageUrl: '/images/categories/cuisine/french.png',
+    meals: []
+  },
+  {
+    id: 'middle-eastern',
+    name: 'Middle Eastern',
+    description: 'Falafel, shawarma & more',
+    imageUrl: '/images/categories/cuisine/middle-eastern.png',
+    meals: []
+  },
+  {
+    id: 'bbq',
+    name: 'BBQ',
+    description: 'Smoky grilled goodness',
+    imageUrl: '/images/categories/cuisine/bbq.png',
+    meals: []
+  }
+];
+
+// Sweet-treat categories with images
+export const treatsCategories: MealCategory[] = [
+  {
+    id: 'cookies',
+    name: 'Cookies',
+    description: 'Chewy, crispy & everything in-between',
+    imageUrl: '/images/categories/treats/cookies.png',
+    meals: []
+  },
+  {
+    id: 'cakes',
+    name: 'Cakes',
+    description: 'Layers of sweetness for any occasion',
+    imageUrl: '/images/categories/treats/cakes.png',
+    meals: []
+  },
+  {
+    id: 'brownies',
+    name: 'Brownies',
+    description: 'Fudgy, gooey chocolate bites',
+    imageUrl: '/images/categories/treats/brownies.png',
+    meals: []
+  },
+  {
+    id: 'ice-cream',
+    name: 'Ice Cream',
+    description: 'Scoops of frozen delight',
+    imageUrl: '/images/categories/treats/ice-cream.png',
+    meals: []
+  },
+  {
+    id: 'pastries',
+    name: 'Pastries',
+    description: 'Flaky, buttery perfection',
+    imageUrl: '/images/categories/treats/pastries.png',
+    meals: []
+  },
+  {
+    id: 'donuts-muffins',
+    name: 'Donuts & Muffins',
+    description: 'Morning pick-me-ups',
+    imageUrl: '/images/categories/treats/donuts-and-muffins.png',
+    meals: []
+  },
+  {
+    id: 'pies',
+    name: 'Pies',
+    description: 'Sweet & savory fillings',
+    imageUrl: '/images/categories/treats/pies.png',
+    meals: []
+  },
+  {
+    id: 'fruit-desserts',
+    name: 'Fruit Desserts',
+    description: 'Naturally sweet treats',
+    imageUrl: '/images/categories/treats/fruit-desserts.png',
+    meals: []
+  },
+  {
+    id: 'chocolate',
+    name: 'Chocolate Treats',
+    description: 'Decadent cocoa creations',
+    imageUrl: '/images/categories/treats/chocolate-treats.png',
+    meals: []
+  },
+  {
+    id: 'healthy',
+    name: 'Healthy Desserts',
+    description: 'Guilt-free indulgence',
+    imageUrl: '/images/categories/treats/healthy-deserts.png',
+    meals: []
   }
 ];
 
@@ -307,52 +393,12 @@ export const mealCarouselSections: CarouselSection[] = [
     title: 'Cuisine',
     subtitle: 'Build with pAIr',
     categories: cuisineCategories
-  }
-  // Will add cuisine and treats sections later
-];
-
-export const quickMealCategories = [
-  {
-    id: 'high-protein',
-    name: 'High Protein',
-    icon: '💪',
-    color: 'bg-red-100 hover:bg-red-200',
-    textColor: 'text-red-700'
   },
   {
-    id: 'vegetarian',
-    name: 'Vegetarian',
-    icon: '🥬',
-    color: 'bg-emerald-100 hover:bg-emerald-200',
-    textColor: 'text-emerald-700'
-  },
-  {
-    id: 'vegan',
-    name: 'Vegan',
-    icon: '🌱',
-    color: 'bg-green-100 hover:bg-green-200',
-    textColor: 'text-green-700'
-  },
-  {
-    id: 'snack',
-    name: 'Snack',
-    icon: '🍿',
-    color: 'bg-yellow-100 hover:bg-yellow-200',
-    textColor: 'text-yellow-700'
-  },
-  {
-    id: 'treat',
-    name: 'Treat',
-    icon: '🍪',
-    color: 'bg-purple-100 hover:bg-purple-200',
-    textColor: 'text-purple-700'
-  },
-  {
-    id: 'random',
-    name: 'Try Something New',
-    icon: '🎲',
-    color: 'bg-blue-100 hover:bg-blue-200',
-    textColor: 'text-blue-700'
+    id: 'treats',
+    title: 'Sweet Treats',
+    subtitle: 'Build with pAIr',
+    categories: treatsCategories
   }
 ];
 
@@ -418,49 +464,4 @@ export const dummyMeals: Meal[] = [
     },
     imageUrl: 'https://images.unsplash.com/photo-1546007600-8c4e21a5c6d8?auto=format&fit=crop&w=800&q=80'
   }
-];
-
-export const dummyGroceryList: GroceryItem[] = [
-  {
-    id: "1",
-    name: "Chicken Breast",
-    store: "Costco",
-    isChecked: false,
-    quantity: "2 packs"
-  },
-  {
-    id: "2",
-    name: "Greek Yogurt",
-    store: "Trader Joe's",
-    isChecked: false,
-    quantity: "32 oz"
-  },
-  {
-    id: "3",
-    name: "Sweet Potatoes",
-    store: "Trader Joe's",
-    isChecked: false,
-    quantity: "3 lbs"
-  },
-  {
-    id: "4",
-    name: "Quinoa",
-    store: "Costco",
-    isChecked: false,
-    quantity: "1 bag"
-  },
-  {
-    id: "5",
-    name: "Spinach",
-    store: "Trader Joe's",
-    isChecked: false,
-    quantity: "2 bags"
-  }
-];
-
-export const dummySmartSummary: SmartSummary = {
-  stores: ["Costco", "Trader Joe's"],
-  totalItems: 5,
-  estimatedTime: "45 minutes",
-  estimatedSavings: "$23.50"
-}; 
+]; 
