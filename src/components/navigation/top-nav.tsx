@@ -3,14 +3,16 @@
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
-import { Moon, Sun, User as UserIcon } from "lucide-react";
+import { Home, Info, Moon, Sun, User as UserIcon } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export function TopNav() {
   const [dark, setDark] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const supabase = createClient();
+  const pathname = usePathname();
 
   useEffect(() => {
     // Get initial user
@@ -34,10 +36,6 @@ export function TopNav() {
     document.body.classList.toggle('dark');
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
   return (
     <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
       <div className="container h-full flex items-center justify-between">
@@ -53,11 +51,25 @@ export function TopNav() {
           <Button size="icon" variant="ghost" onClick={toggleTheme} aria-label="toggle theme">
             {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
+          {pathname.startsWith('/learn') ? (
+            <Link href={user ? '/dashboard' : '/'}>
+              <Button size="icon" variant="ghost" aria-label="home">
+                <Home className="h-5 w-5" />
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/learn">
+              <Button size="icon" variant="ghost" aria-label="learn">
+                <Info className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
           {user ? (
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="flex items-center gap-2">
-              <UserIcon className="h-5 w-5" />
-              Logout
-            </Button>
+            <Link href="/dashboard/account">
+              <Button size="icon" variant="ghost" aria-label="account">
+                <UserIcon className="h-5 w-5" />
+              </Button>
+            </Link>
           ) : (
             <Link href="/login" className="flex items-center gap-2 text-sm hover:text-primary">
               <UserIcon className="h-5 w-5" />

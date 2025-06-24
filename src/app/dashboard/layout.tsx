@@ -2,30 +2,25 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/button";
-import { Home, ShoppingCart, User, UtensilsCrossed } from "lucide-react";
+import { Home, ShoppingCart, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigation = [
-  {
-    name: 'Home',
-    href: '/dashboard',
-    icon: Home
-  },
   {
     name: 'Grocery',
     href: '/dashboard/grocery',
     icon: ShoppingCart
   },
   {
+    name: 'Home',
+    href: '/dashboard',
+    icon: Home
+  },
+  {
     name: 'Meals',
     href: '/dashboard/meals',
     icon: UtensilsCrossed
-  },
-  {
-    name: 'Account',
-    href: '/dashboard/account',
-    icon: User
   }
 ];
 

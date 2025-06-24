@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { User } from "@supabase/supabase-js";
-import { Clock, List, Settings, ShoppingCart, User as UserIcon } from "lucide-react";
+import { ChefHat, Clock, List, ShoppingCart, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -35,6 +35,7 @@ export default function DashboardHome() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
   const [shoppingListCount, setShoppingListCount] = useState(0);
+  const [mealCount, setMealCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [showRecentMeals, setShowRecentMeals] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -90,6 +91,16 @@ export default function DashboardHome() {
 
     if (mealsData) {
       setRecentMeals(mealsData);
+    }
+
+    // Get total meal count
+    const { count: totalMeals } = await supabase
+      .from('recent_meals')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+
+    if (typeof totalMeals === 'number') {
+      setMealCount(totalMeals);
     }
 
     // Load shopping list count and last updated
@@ -216,15 +227,15 @@ export default function DashboardHome() {
             </CardContent>
           </Card>
 
-          {/* User Profile Card */}
+          {/* Account & Settings Card */}
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <UserIcon className="h-6 w-6" />
-                Profile
+                Account & Settings
               </CardTitle>
               <CardDescription>
-                Manage your account and preferences
+                Manage your profile, household, and preferences
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -243,23 +254,6 @@ export default function DashboardHome() {
                     Manage Households
                   </Button>
                 </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Settings Card */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-6 w-6" />
-                Settings
-              </CardTitle>
-              <CardDescription>
-                Customize your experience
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-2">
                 <Link href="/dashboard/account/dietary-preferences">
                   <Button variant="outline" className="w-full">
                     Dietary Preferences
@@ -268,6 +262,38 @@ export default function DashboardHome() {
                 <Link href="/dashboard/account/shopping-settings">
                   <Button variant="outline" className="w-full">
                     Shopping Settings
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Plan Another Meal Card */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ChefHat className="h-6 w-6" />
+                Plan Another Meal
+              </CardTitle>
+              <CardDescription>
+               Look at all the meals you've made with pAIr!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="font-bold text-3xl">{mealCount}</p>
+                <p className="text-sm">Meals made with pAIr</p>
+                <p className="text-xs text-muted-foreground">Want to make another?</p>
+              </div>
+              <div className="grid gap-2">
+                <Link href="/dashboard/grocery">
+                  <Button variant="secondary" className="w-full gap-2">
+                    Go Shopping
+                  </Button>
+                </Link>
+                <Link href="/dashboard/meals">
+                  <Button variant="outline" className="w-full gap-2">
+                    Quick Meal
                   </Button>
                 </Link>
               </div>

@@ -1,12 +1,13 @@
 "use client";
 
-import { MealDialog } from "@/features/meals/components/meal-dialog";
-import { Meal, dummyMeals, quickMealCategories } from "@/lib/dummy-data";
+import { MealCarousel } from "@/features/meals/components/meal-carousel";
+import { SwipeableMealCard } from "@/features/meals/components/swipeable-meal-card";
+import { Meal, MealCategory, dummyMeals, mealCarouselSections } from "@/lib/dummy-data";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
-import { motion } from "framer-motion";
-import { ChefHat, Loader2, Star } from "lucide-react";
+import { ChefHat, Dice6, Loader2, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -25,10 +26,11 @@ interface RecentMeal {
 }
 
 export default function MealsPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<MealCategory | null>(null);
+  const [currentMeal, setCurrentMeal] = useState<Meal | null>(null);
+  const [currentMealIndex, setCurrentMealIndex] = useState(0);
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
-  const [aiMeal, setAiMeal] = useState<RecentMeal | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const supabase = createClient();
 
@@ -62,104 +64,118 @@ export default function MealsPage() {
     }
   };
 
-  const selectedMeal = selectedCategory
-    ? dummyMeals.find((meal) => meal.category === selectedCategory) ?? null
-    : aiMeal;
-
-  const handleNext = async () => {
-    if (!selectedMeal) return;
-
-    if ('meal_name' in selectedMeal) {
-      // It's already a RecentMeal
-      setRecentMeals((prev) => [selectedMeal, ...prev]);
+  const handleCategorySelect = (category: MealCategory) => {
+    setSelectedCategory(category);
+    // For now, use dummy meals - later this will be AI-generated meals for the category
+    const categoryMeals = dummyMeals.filter(meal => 
+      meal.category === category.id || 
+      (category.id === 'high-protein' && meal.category === 'high-protein')
+    );
+    
+    if (categoryMeals.length > 0) {
+      setCurrentMeal(categoryMeals[0]);
+      setCurrentMealIndex(0);
     } else {
-      // It's a template Meal, convert it to RecentMeal
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('You must be logged in to save meals');
-        return;
+      // Generate a meal for this category
+      generateMealForCategory(category);
+    }
+  };
+
+  const generateMealForCategory = async (category: MealCategory) => {
+    setIsGenerating(true);
+    try {
+      // This would call your meal generation API with the category
+      const response = await fetch('/api/meal-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: category.id })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate meal suggestion');
       }
 
-      const newMeal: RecentMeal = {
-        id: selectedMeal.id,
-        meal_name: selectedMeal.name,
-        cooking_time: selectedMeal.cookingTime,
-        rating: selectedMeal.rating,
-        category: selectedMeal.category,
-        dietary_tags: selectedMeal.dietaryTags,
-        ingredients: selectedMeal.ingredients,
-        steps: selectedMeal.steps,
-        nutrition: selectedMeal.nutrition,
-        created_at: new Date().toISOString(),
-        created_from_groceries: false
-      };
+      const meal = await response.json();
+      setCurrentMeal(meal);
+      setCurrentMealIndex(0);
+    } catch (error) {
+      console.error('Error generating meal:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate meal suggestion');
+      setSelectedCategory(null);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
-      try {
-        const { error: mealError } = await supabase
-          .from('recent_meals')
-          .insert([{
-            user_id: user.id,
-            meal_name: selectedMeal.name,
-            cooking_time: selectedMeal.cookingTime,
-            rating: selectedMeal.rating,
-            category: selectedMeal.category,
-            dietary_tags: selectedMeal.dietaryTags,
-            ingredients: selectedMeal.ingredients,
-            steps: selectedMeal.steps,
-            nutrition: selectedMeal.nutrition,
-            created_from_groceries: false
-          }]);
-
-        if (mealError) {
-          // Log the error in multiple ways to capture all information
-          console.error('Error saving meal - Raw error:', mealError);
-          console.error('Error saving meal - Stringified:', JSON.stringify(mealError, null, 2));
-          console.error('Error saving meal - Properties:', {
-            message: mealError.message,
-            details: mealError.details,
-            hint: mealError.hint,
-            code: mealError.code
-          });
-          
-          // Try to get all enumerable and non-enumerable properties
-          const errorInfo: Record<string, any> = {};
-          Object.getOwnPropertyNames(mealError).forEach((key) => {
-            try {
-              errorInfo[key] = (mealError as any)[key];
-            } catch (e) {
-              errorInfo[key] = `[Error accessing property: ${e instanceof Error ? e.message : 'Unknown error'}]`;
-            }
-          });
-          console.error('Error saving meal - All properties:', errorInfo);
-          
-          toast.error(`Failed to save meal: ${mealError.message || mealError.details || 'Unknown database error'}`);
-          return;
-        }
-
-        setRecentMeals((prev) => [newMeal, ...prev]);
-        toast.success('Meal saved successfully!');
-      } catch (error) {
-        console.error('Unexpected error saving meal:', error);
-        toast.error('An unexpected error occurred while saving the meal');
-        return;
+  const handleSwipeLeft = () => {
+    // Move to next meal or generate a new one
+    const categoryMeals = dummyMeals.filter(meal => 
+      meal.category === selectedCategory?.id || 
+      (selectedCategory?.id === 'high-protein' && meal.category === 'high-protein')
+    );
+    
+    if (currentMealIndex < categoryMeals.length - 1) {
+      const nextIndex = currentMealIndex + 1;
+      setCurrentMeal(categoryMeals[nextIndex]);
+      setCurrentMealIndex(nextIndex);
+    } else {
+      // Generate a new meal or show a message
+      if (selectedCategory) {
+        generateMealForCategory(selectedCategory);
       }
     }
-
-    setSelectedCategory(null);
-    setAiMeal(null);
   };
 
-  const toggleFavorite = (mealId: string) => {
-    setFavoriteMeals((prev) =>
-      prev.includes(mealId)
-        ? prev.filter((id) => id !== mealId)
-        : [...prev, mealId]
-    );
-  };
+  const handleSwipeRight = async () => {
+    if (!currentMeal) return;
 
-  const generateMealFromGroceries = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('You must be logged in to save meals');
+      return;
+    }
+
     try {
-      setIsGenerating(true);
+      const { error: mealError } = await supabase
+        .from('recent_meals')
+        .insert([{
+          user_id: user.id,
+          meal_name: currentMeal.name,
+          cooking_time: currentMeal.cookingTime,
+          rating: currentMeal.rating,
+          category: currentMeal.category,
+          dietary_tags: currentMeal.dietaryTags,
+          ingredients: currentMeal.ingredients,
+          steps: currentMeal.steps,
+          nutrition: currentMeal.nutrition,
+          created_from_groceries: false
+        }]);
+
+      if (mealError) {
+        console.error('Error saving meal:', mealError);
+        toast.error(`Failed to save meal: ${mealError.message || 'Unknown database error'}`);
+        return;
+      }
+
+      toast.success('Meal saved successfully!');
+      loadRecentMeals(); // Reload recent meals
+      setSelectedCategory(null);
+      setCurrentMeal(null);
+    } catch (error) {
+      console.error('Unexpected error saving meal:', error);
+      toast.error('An unexpected error occurred while saving the meal');
+    }
+  };
+
+  const handleCloseMealCard = () => {
+    setSelectedCategory(null);
+    setCurrentMeal(null);
+  };
+
+  const generateRandomMeal = async () => {
+    setIsGenerating(true);
+    try {
       const response = await fetch('/api/meal-suggestions', {
         method: 'POST'
       });
@@ -170,8 +186,8 @@ export default function MealsPage() {
       }
 
       const meal = await response.json();
-      setAiMeal(meal);
-      loadRecentMeals(); // Reload recent meals to include the new one
+      setCurrentMeal(meal);
+      setSelectedCategory({ id: 'random', name: 'Random', description: 'Surprise meal', imageUrl: '', meals: [] });
     } catch (error) {
       console.error('Error generating meal:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate meal suggestion');
@@ -180,62 +196,104 @@ export default function MealsPage() {
     }
   };
 
-  const convertToMealFormat = (meal: RecentMeal | Meal): Meal => {
-    if ('meal_name' in meal) {
-      return {
-        id: meal.id,
-        name: meal.meal_name,
-        cookingTime: meal.cooking_time,
-        rating: meal.rating,
-        category: meal.category === 'main' ? 'high-protein' : 'random',
-        dietaryTags: meal.dietary_tags,
-        ingredients: meal.ingredients,
-        steps: meal.steps,
-        nutrition: meal.nutrition
-      };
+  const generateMealFromGroceries = async () => {
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/meal-suggestions', {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate meal suggestion');
+      }
+
+      const meal = await response.json();
+      setCurrentMeal(meal);
+      setSelectedCategory({ id: 'groceries', name: 'From Groceries', description: 'Made from your groceries', imageUrl: '', meals: [] });
+    } catch (error) {
+      console.error('Error generating meal:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate meal suggestion');
+    } finally {
+      setIsGenerating(false);
     }
-    return meal;
+  };
+
+  const toggleFavorite = (mealId: string) => {
+    setFavoriteMeals((prev) =>
+      prev.includes(mealId)
+        ? prev.filter((id) => id !== mealId)
+        : [...prev, mealId]
+    );
   };
 
   return (
-    <main className="container max-w-4xl mx-auto p-4 space-y-8">
+    <main className="container max-w-6xl mx-auto p-4 space-y-8">
+      {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Quick Meals</h1>
+        <h1 className="text-3xl font-bold">Discover Meals</h1>
         <p className="text-muted-foreground">
-          Select a category to discover delicious and easy-to-make meals.
+          Swipe through personalized meal suggestions or explore by category.
         </p>
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          onClick={generateMealFromGroceries}
-          disabled={isGenerating}
-          className="gap-2"
-        >
-          {isGenerating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ChefHat className="h-4 w-4" />
-          )}
-          Create from Groceries
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 md:gap-6">
-        {quickMealCategories.map((category) => (
-          <motion.button
-            key={category.id}
-            className={`${category.color} ${category.textColor} rounded-xl p-6 aspect-square flex flex-col items-center justify-center gap-4 transition-colors`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setSelectedCategory(category.id)}
-          >
-            <span className="text-4xl">{category.icon}</span>
-            <span className="text-lg font-medium text-center">{category.name}</span>
-          </motion.button>
+      {/* Meal Carousels */}
+      <div className="space-y-8">
+        {mealCarouselSections.map((section) => (
+          <MealCarousel
+            key={section.id}
+            title={section.title}
+            subtitle={section.subtitle}
+            categories={section.categories}
+            onCategorySelect={handleCategorySelect}
+          />
         ))}
       </div>
 
+      {/* Meals Made with pAIr */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Meals Made with pAIr</CardTitle>
+          <CardDescription>
+            Get instant meal suggestions powered by AI
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Button
+            variant="outline"
+            className="h-24 flex flex-col gap-2"
+            onClick={generateRandomMeal}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <Dice6 className="h-6 w-6" />
+            )}
+            <div className="text-center">
+              <p className="font-medium">Random Meal</p>
+              <p className="text-xs text-muted-foreground">Surprise me!</p>
+            </div>
+          </Button>
+          <Button
+            className="h-24 flex flex-col gap-2"
+            onClick={generateMealFromGroceries}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <ChefHat className="h-6 w-6" />
+            )}
+            <div className="text-center">
+              <p className="font-medium">Make from Groceries</p>
+              <p className="text-xs opacity-80">Use what you have</p>
+            </div>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Previous Meals & Favorites */}
       <Tabs defaultValue="previous" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="previous">Previous Meals</TabsTrigger>
@@ -279,7 +337,7 @@ export default function MealsPage() {
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              No previous meals yet. Start by selecting a category above!
+              No previous meals yet. Start by exploring categories above!
             </div>
           )}
         </TabsContent>
@@ -323,15 +381,15 @@ export default function MealsPage() {
         </TabsContent>
       </Tabs>
 
-      <MealDialog
-        meal={selectedMeal ? convertToMealFormat(selectedMeal) : null}
-        isOpen={!!selectedCategory || !!aiMeal}
-        onClose={() => {
-          setSelectedCategory(null);
-          setAiMeal(null);
-        }}
-        onNext={handleNext}
-      />
+      {/* Swipeable Meal Card */}
+      {currentMeal && (
+        <SwipeableMealCard
+          meal={currentMeal}
+          onSwipeLeft={handleSwipeLeft}
+          onSwipeRight={handleSwipeRight}
+          onClose={handleCloseMealCard}
+        />
+      )}
     </main>
   );
 } 

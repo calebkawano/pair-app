@@ -1,4 +1,3 @@
-import { BottomNav } from "@/components/navigation/bottom-nav";
 import { TopNav } from "@/components/navigation/top-nav";
 import { ToastProvider } from "@/providers/toast-provider";
 import type { Metadata } from "next";
@@ -22,10 +21,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <div className="flex flex-col min-h-screen relative">
           <TopNav />
-          <div className="flex-1 pt-14 pb-16">
+          <div className="flex-1 pt-14">
             {children}
           </div>
-          <BottomNav />
         </div>
         <ToastProvider />
       </body>

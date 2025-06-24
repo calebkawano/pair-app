@@ -5,12 +5,13 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import type { User } from "@supabase/supabase-js";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-export default function AccountPage() {
+function AccountContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -48,23 +49,19 @@ export default function AccountPage() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin w-8 h-8 mb-4" />
+        <p>Loading account information...</p>
+      </div>
+    );
   }
 
   return (
     <main className="container max-w-2xl mx-auto p-4 space-y-8">
-      <div className="flex justify-between items-center">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Account</h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences</p>
-        </div>
-        <Button 
-          variant="destructive" 
-          onClick={handleLogout}
-          className="h-10"
-        >
-          Logout
-        </Button>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">Account</h1>
+        <p className="text-muted-foreground">Manage your account settings and shopping preferences</p>
       </div>
 
       <div className="grid gap-6">
@@ -127,6 +124,22 @@ export default function AccountPage() {
             </div>
           </div>
         </Card>
+
+        {/* Logout Section */}
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Manage your login</p>
+            </div>
+            <Button 
+              variant="destructive" 
+              onClick={handleLogout}
+              className="w-fit"
+            >
+              Logout
+            </Button>
+          </div>
+        </Card>
       </div>
 
       <EditProfileDialog
@@ -136,5 +149,18 @@ export default function AccountPage() {
         onSaveSuccess={handleProfileSaveSuccess}
       />
     </main>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin w-8 h-8 mb-4" />
+        <p>Loading...</p>
+      </div>
+    }>
+      <AccountContent />
+    </Suspense>
   );
 } 

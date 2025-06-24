@@ -39,6 +39,21 @@ export interface Meal {
   imageUrl?: string;
 }
 
+export interface MealCategory {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  meals: Meal[];
+}
+
+export interface CarouselSection {
+  id: string;
+  title: string;
+  subtitle: string;
+  categories: MealCategory[];
+}
+
 export const dietaryTags: Record<string, DietaryTag> = {
   vegan: {
     label: 'Vegan',
@@ -64,8 +79,171 @@ export const dietaryTags: Record<string, DietaryTag> = {
     label: 'Dairy Free',
     color: 'text-blue-600',
     icon: '🥛'
+  },
+  keto: {
+    label: 'Keto',
+    color: 'text-purple-600',
+    icon: '🥑'
+  },
+  paleo: {
+    label: 'Paleo',
+    color: 'text-orange-600',
+    icon: '🥩'
+  },
+  mediterranean: {
+    label: 'Mediterranean',
+    color: 'text-blue-500',
+    icon: '🫒'
+  },
+  lowCarb: {
+    label: 'Low Carb',
+    color: 'text-indigo-600',
+    icon: '🥒'
+  },
+  antiInflammatory: {
+    label: 'Anti-Inflammatory',
+    color: 'text-pink-600',
+    icon: '🫐'
+  },
+  heartHealthy: {
+    label: 'Heart Healthy',
+    color: 'text-red-500',
+    icon: '❤️'
+  },
+  weightLoss: {
+    label: 'Weight Loss',
+    color: 'text-green-500',
+    icon: '⚖️'
+  },
+  muscleBuilding: {
+    label: 'Muscle Building',
+    color: 'text-red-600',
+    icon: '💪'
+  },
+  smoothies: {
+    label: 'Smoothies',
+    color: 'text-purple-500',
+    icon: '🥤'
+  },
+  whole30: {
+    label: 'Whole30',
+    color: 'text-amber-600',
+    icon: '🌿'
   }
 };
+
+// Diet-based meal categories with images
+export const dietBasedCategories: MealCategory[] = [
+  {
+    id: 'high-protein',
+    name: 'High Protein',
+    description: 'Power up with protein-rich meals',
+    imageUrl: '/images/categories/diet/high-protein.jpg.png',
+    meals: [] // Will be populated with actual meals
+  },
+  {
+    id: 'vegan',
+    name: 'Vegan',
+    description: 'Plant-based goodness',
+    imageUrl: '/images/categories/diet/vegan.jgp.png',
+    meals: []
+  },
+  {
+    id: 'vegetarian',
+    name: 'Vegetarian',
+    description: 'Meat-free delicious options',
+    imageUrl: '/images/categories/diet/vegetarian.jpg.png',
+    meals: []
+  },
+  {
+    id: 'keto',
+    name: 'Keto',
+    description: 'Low-carb, high-fat favorites',
+    imageUrl: '/images/categories/diet/keto.jpg.png',
+    meals: []
+  },
+  {
+    id: 'paleo',
+    name: 'Paleo',
+    description: 'Natural, unprocessed eating',
+    imageUrl: '/images/categories/diet/paleo.png',
+    meals: []
+  },
+  {
+    id: 'mediterranean',
+    name: 'Mediterranean',
+    description: 'Heart-healthy coastal cuisine',
+    imageUrl: '/images/categories/diet/mediterranean.png',
+    meals: []
+  },
+  {
+    id: 'low-carb',
+    name: 'Low Carb',
+    description: 'Satisfying without the carbs',
+    imageUrl: '/images/categories/diet/low-carb.png',
+    meals: []
+  },
+  {
+    id: 'gluten-free',
+    name: 'Gluten-Free',
+    description: 'Safe and delicious options',
+    imageUrl: '/images/categories/diet/gluten-free.png',
+    meals: []
+  },
+  {
+    id: 'anti-inflammatory',
+    name: 'Anti-Inflammatory',
+    description: 'Foods that heal and nourish',
+    imageUrl: '/images/categories/diet/anti-inflammatory.png',
+    meals: []
+  },
+  {
+    id: 'heart-healthy',
+    name: 'Heart Healthy',
+    description: 'Good for your heart',
+    imageUrl: '/images/categories/diet/heart-healthy.png',
+    meals: []
+  },
+  {
+    id: 'weight-loss',
+    name: 'Weight Loss',
+    description: 'Light and satisfying meals',
+    imageUrl: '/images/categories/diet/weight-loss.png',
+    meals: []
+  },
+  {
+    id: 'muscle-building',
+    name: 'Muscle Building',
+    description: 'Fuel your gains',
+    imageUrl: '/images/categories/diet/muscle-building.png',
+    meals: []
+  },
+  {
+    id: 'smoothies',
+    name: 'Smoothies',
+    description: 'Blend your way to health',
+    imageUrl: '/images/categories/diet/smoothies.png',
+    meals: []
+  },
+  {
+    id: 'whole30',
+    name: 'Whole30',
+    description: 'Clean eating made simple',
+    imageUrl: '/images/categories/diet/whole30.png',
+    meals: []
+  }
+];
+
+// Carousel sections structure
+export const mealCarouselSections: CarouselSection[] = [
+  {
+    id: 'diet-based',
+    title: 'Diet-Based',
+    subtitle: 'Built with pAIr',
+    categories: dietBasedCategories
+  }
+  // Will add cuisine and treats sections later
+];
 
 export const quickMealCategories = [
   {
