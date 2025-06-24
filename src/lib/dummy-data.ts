@@ -234,13 +234,79 @@ export const dietBasedCategories: MealCategory[] = [
   }
 ];
 
+// Cuisine-based meal categories with images
+export const cuisineCategories: MealCategory[] = [
+  {
+    id: 'mexican',
+    name: 'Mexican',
+    description: 'Tacos, burritos, and more',
+    imageUrl: '/images/categories/cuisine/mexican.png',
+    meals: []
+  },
+  {
+    id: 'chinese',
+    name: 'Chinese',
+    description: 'Wok-fired classics',
+    imageUrl: '/images/categories/cuisine/chinese.png',
+    meals: []
+  },
+  {
+    id: 'indian',
+    name: 'Indian',
+    description: 'Rich curries and spices',
+    imageUrl: '/images/categories/cuisine/indian.png',
+    meals: []
+  },
+  {
+    id: 'italian',
+    name: 'Italian',
+    description: 'Pasta, pizza, and amore',
+    imageUrl: '/images/categories/cuisine/italian.png',
+    meals: []
+  },
+  {
+    id: 'japanese',
+    name: 'Japanese',
+    description: 'Sushi, ramen, and more',
+    imageUrl: '/images/categories/cuisine/japanese.png',
+    meals: []
+  },
+  {
+    id: 'thai',
+    name: 'Thai',
+    description: 'Sweet, sour, spicy harmony',
+    imageUrl: '/images/categories/cuisine/thai.png',
+    meals: []
+  },
+  {
+    id: 'greek',
+    name: 'Greek',
+    description: 'Mediterranean delights',
+    imageUrl: '/images/categories/cuisine/greek.png',
+    meals: []
+  },
+  {
+    id: 'korean',
+    name: 'Korean',
+    description: 'BBQ, kimchi, bibimbap',
+    imageUrl: '/images/categories/cuisine/korean.png',
+    meals: []
+  }
+];
+
 // Carousel sections structure
 export const mealCarouselSections: CarouselSection[] = [
   {
     id: 'diet-based',
     title: 'Diet-Based',
-    subtitle: 'Built with pAIr',
+    subtitle: 'Build with pAIr',
     categories: dietBasedCategories
+  },
+  {
+    id: 'cuisine',
+    title: 'Cuisine',
+    subtitle: 'Build with pAIr',
+    categories: cuisineCategories
   }
   // Will add cuisine and treats sections later
 ];
