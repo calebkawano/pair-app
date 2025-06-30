@@ -19,7 +19,7 @@ import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { User } from "@supabase/supabase-js";
-import { ChevronDown, ChevronUp, Copy, Link as LinkIcon, MessageSquare, Palette, PlusCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Link as LinkIcon, MessageSquare, Palette, PlusCircle, Trash2 } from "lucide-react";
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -43,6 +43,8 @@ interface Household {
   members: Member[];
   isExpanded?: boolean;
   color?: string;
+  is_personal?: boolean;
+  created_by: string;
 }
 
 type SupabaseHouseholdMember = {
@@ -92,6 +94,8 @@ export default function HouseholdsPage() {
   const [selectedHouseholdForRequest, setSelectedHouseholdForRequest] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const supabase = createClient();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [householdToDelete, setHouseholdToDelete] = useState<Household | null>(null);
 
   // Get household color based on saved color or default hash
   const getHouseholdColor = (household: Household) => {
@@ -120,12 +124,62 @@ export default function HouseholdsPage() {
 
   const loadHouseholds = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log('No user found when loading households');
         return;
       }
 
+      // First check if user has a personal household
+      const { data: personalHousehold, error: personalHouseholdError } = await supabase
+        .from('households')
+        .select('*')
+        .eq('created_by', user.id)
+        .eq('is_personal', true)
+        .single();
+
+      if (personalHouseholdError && personalHouseholdError.code !== 'PGRST116') {
+        console.error('Error checking personal household:', personalHouseholdError);
+      }
+
+      // If no personal household exists, create one
+      if (!personalHousehold) {
+        const { data: newPersonalHousehold, error: createError } = await supabase
+          .from('households')
+          .insert([
+            {
+              name: `${user.user_metadata.full_name || 'Personal'} Household`,
+              created_by: user.id,
+              is_personal: true
+            }
+          ])
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating personal household:', createError);
+        } else if (newPersonalHousehold) {
+          // Add user as admin member of their personal household
+          const { error: memberError } = await supabase
+            .from('household_members')
+            .insert([
+              {
+                household_id: newPersonalHousehold.id,
+                user_id: user.id,
+                role: 'admin',
+                dietary_preferences: {},
+                allergies: [],
+              }
+            ]);
+
+          if (memberError) {
+            console.error('Error adding member to personal household:', memberError);
+          }
+        }
+      }
+
+      // Now load all households as before
       console.log('Loading households for user:', user.id);
 
       // First, let's try a simpler query to see if the user has any household memberships
@@ -205,6 +259,8 @@ export default function HouseholdsPage() {
             role: member.role || 'member',
           })) || [],
           isExpanded: false,
+          is_personal: false,
+          created_by: '',
         };
       });
 
@@ -270,7 +326,11 @@ export default function HouseholdsPage() {
         return;
       }
 
-      console.log('Creating household:', newHouseholdName.trim(), 'for user:', user.id);
+      console.log('Creating household:', {
+        name: newHouseholdName.trim(),
+        userId: user.id,
+        isPersonal: false
+      });
 
       // First, create the household
       const { data: household, error: householdError } = await supabase
@@ -278,19 +338,27 @@ export default function HouseholdsPage() {
         .insert([
           { 
             name: newHouseholdName.trim(), 
-            created_by: user.id 
+            created_by: user.id,
+            is_personal: false
           }
         ])
         .select()
         .single();
 
       if (householdError) {
-        console.error('Error creating household:', householdError);
+        console.error('Error creating household:', {
+          error: householdError,
+          message: householdError.message,
+          details: householdError.details,
+          hint: householdError.hint,
+          code: householdError.code
+        });
         toast.error(`Failed to create household: ${householdError.message}`);
         return;
       }
 
       if (!household) {
+        console.error('No household data returned after creation');
         toast.error('Failed to create household. Please try again.');
         return;
       }
@@ -311,12 +379,23 @@ export default function HouseholdsPage() {
         ]);
 
       if (memberError) {
-        console.error('Error adding member:', memberError);
+        console.error('Error adding member:', {
+          error: memberError,
+          message: memberError.message,
+          details: memberError.details,
+          hint: memberError.hint,
+          code: memberError.code
+        });
+        
         // If adding member fails, delete the household
-        await supabase
+        const { error: deleteError } = await supabase
           .from('households')
           .delete()
           .eq('id', household.id);
+          
+        if (deleteError) {
+          console.error('Error cleaning up household after member creation failed:', deleteError);
+        }
         
         toast.error(`Failed to set up household: ${memberError.message}`);
         return;
@@ -330,7 +409,11 @@ export default function HouseholdsPage() {
       setCreateDialogOpen(false);
       toast.success('Household created successfully');
     } catch (error) {
-      console.error('Error creating household:', error);
+      console.error('Error creating household:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setIsCreating(false);
@@ -389,6 +472,60 @@ export default function HouseholdsPage() {
   const handleRequestFood = (householdId: string) => {
     setSelectedHouseholdForRequest(householdId);
     setShowFoodRequestDialog(true);
+  };
+
+  const handleDeleteHousehold = async () => {
+    if (!householdToDelete) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('You must be logged in to delete a household');
+        return;
+      }
+
+      // Check if this is a personal household
+      if (householdToDelete.is_personal) {
+        toast.error('Cannot delete your personal household');
+        return;
+      }
+
+      // Check if user is the creator of the household
+      if (householdToDelete.created_by !== user.id) {
+        toast.error('Only the household creator can delete it');
+        return;
+      }
+
+      // Delete the household
+      const { error: deleteError } = await supabase
+        .from('households')
+        .delete()
+        .eq('id', householdToDelete.id);
+
+      if (deleteError) {
+        console.error('Error deleting household:', {
+          error: deleteError,
+          message: deleteError.message,
+          details: deleteError.details,
+          hint: deleteError.hint,
+          code: deleteError.code
+        });
+        toast.error(`Failed to delete household: ${deleteError.message}`);
+        return;
+      }
+
+      toast.success('Household deleted successfully');
+      setDeleteDialogOpen(false);
+      setHouseholdToDelete(null);
+      await loadHouseholds();
+    } catch (error) {
+      console.error('Error deleting household:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      toast.error('An unexpected error occurred while deleting the household');
+    }
   };
 
   if (loading) {
@@ -565,6 +702,19 @@ export default function HouseholdsPage() {
                     >
                       <Palette className="h-4 w-4" />
                     </Button>
+                    {!household.is_personal && household.created_by === user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setHouseholdToDelete(household);
+                          setDeleteDialogOpen(true);
+                        }}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <button
                       onClick={() => toggleHousehold(household.id)}
                       className="p-2 hover:bg-accent rounded-md transition-colors"
@@ -681,6 +831,33 @@ export default function HouseholdsPage() {
         householdId={selectedHouseholdForRequest || ''}
         onRequestCreated={() => loadHouseholds()}
       />
+
+      {/* Delete Household Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Household</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {householdToDelete?.name}? This action cannot be undone.
+              All household data, including shopping lists and food requests, will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteHousehold}
+            >
+              Delete Household
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
