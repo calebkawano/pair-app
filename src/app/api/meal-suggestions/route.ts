@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `You are a helpful cooking assistant. Given a list of grocery items, suggest a meal that can be made using some or all of these ingredients. Format your response as a JSON object with the following structure:
+          content: `You are a helpful cooking assistant. Given a list of available grocery items, suggest a meal that can be made using SOME of these ingredients - you don't need to use all of them. Be creative and practical - it's better to make a great meal with a few ingredients than try to use everything. Format your response as a JSON object with the following structure:
 {
   "meal_name": "Name of the meal",
   "cooking_time": "Estimated cooking time (e.g., '30 mins')",
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         },
         {
           role: "user",
-          content: `Here are my purchased grocery items:\n${itemsList}\n\nSuggest a meal I can make with some or all of these ingredients.`
+          content: `Here are my available grocery items:\n${itemsList}\n\nSuggest a meal I can make using some of these ingredients. You don't need to use everything - focus on making a delicious meal with what makes sense to use together.`
         }
       ],
       response_format: { type: "json_object" }

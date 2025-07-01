@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 function AccountContent() {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const router = useRouter();
@@ -32,9 +33,25 @@ function AccountContent() {
   }, []);
 
   const getUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-    setLoading(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        // Load profile data from database
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        setProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -79,7 +96,7 @@ function AccountContent() {
               </div>
               <div>
                 <label className="text-sm font-medium">Name</label>
-                <p className="text-sm text-muted-foreground">{user?.user_metadata?.full_name || 'Not set'}</p>
+                <p className="text-sm text-muted-foreground">{profile?.full_name || user?.email}</p>
               </div>
             </div>
             <Button 

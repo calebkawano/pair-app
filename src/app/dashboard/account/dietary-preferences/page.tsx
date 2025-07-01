@@ -1,6 +1,8 @@
 "use client";
 
+import { DietarySuggestionsDialog } from '@/features/grocery/components/dietary-suggestions-dialog';
 import { getDietarySuggestions } from '@/lib/api/dietary';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/ui/button';
 import { Card } from '@/ui/card';
 import { Input } from '@/ui/input';
@@ -8,7 +10,7 @@ import { Label } from '@/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select';
 import { Textarea } from '@/ui/textarea';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface DietaryFormData {
@@ -22,12 +24,42 @@ export default function DietaryPreferencesPage() {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [formData, setFormData] = useState<DietaryFormData>({
     dietaryGoal: '',
     favoriteFood: '',
     cookingTime: '',
     servingCount: '',
   });
+  const supabase = createClient();
+
+  useEffect(() => {
+    loadSavedPreferences();
+  }, []);
+
+  const loadSavedPreferences = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch dietary preferences from household_members (first membership)
+      const { data: memberRow, error } = await supabase
+        .from('household_members')
+        .select('dietary_preferences')
+        .eq('user_id', user.id)
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (memberRow?.dietary_preferences) {
+        setFormData(memberRow.dietary_preferences as DietaryFormData);
+      }
+    } catch (error) {
+      console.error('Error loading dietary preferences:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -43,17 +75,26 @@ export default function DietaryPreferencesPage() {
     setIsSaving(true);
 
     try {
-      // Call the dietary suggestions API
-      const suggestions = await getDietarySuggestions(formData);
-      
-      // Store the suggestions in localStorage for the grocery page to use
-      localStorage.setItem('dietarySuggestions', JSON.stringify(suggestions));
-      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('You must be logged in to save preferences');
+        return;
+      }
+
+      console.log('Saving preferences to household_members:', formData);
+
+      // Update dietary_preferences on all membership rows for this user
+      const { error } = await supabase
+        .from('household_members')
+        .update({ dietary_preferences: formData })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
       toast.success('Dietary preferences saved successfully!');
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving dietary preferences:', error);
-      toast.error('Failed to save dietary preferences. Please try again.');
+      toast.error(`Failed to save dietary preferences: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSaving(false);
     }
@@ -68,9 +109,8 @@ export default function DietaryPreferencesPage() {
     setIsGenerating(true);
     try {
       const suggestions = await getDietarySuggestions(formData);
-      localStorage.setItem('grocerySuggestions', JSON.stringify(suggestions));
-      toast.success('Grocery list generated! Redirecting...');
-      router.push('/dashboard/grocery');
+      setSuggestions(suggestions);
+      setShowSuggestions(true);
     } catch (error) {
       console.error('Error generating grocery list:', error);
       toast.error('Failed to generate grocery list. Please try again.');
@@ -173,11 +213,18 @@ export default function DietaryPreferencesPage() {
               onClick={handleGenerateGroceryList}
               disabled={isGenerating}
             >
-              {isGenerating ? 'Generating...' : 'Generate Grocery List'}
+              {isGenerating ? 'Generating...' : 'Get Suggestions'}
             </Button>
           </div>
         </form>
       </div>
+
+      <DietarySuggestionsDialog
+        isOpen={showSuggestions}
+        onClose={() => setShowSuggestions(false)}
+        suggestions={suggestions}
+        dietaryPreferences={formData}
+      />
     </div>
   );
 } 
