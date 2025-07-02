@@ -1,6 +1,7 @@
 "use client";
 
 import { AddItemDialog } from "@/features/grocery/components/add-item-dialog";
+import { RecentGroceriesDialog } from "@/features/grocery/components/recent-groceries-dialog";
 import { SmartShoppingSummary } from "@/features/grocery/components/smart-shopping-summary";
 import { useUser } from "@/hooks/use-user";
 import { getFoodRequests } from "@/lib/supabase/actions";
@@ -88,12 +89,22 @@ export default function GroceryListPage() {
     return HOUSEHOLD_COLORS[Math.abs(hash) % HOUSEHOLD_COLORS.length];
   };
 
+  const [recentItems, setRecentItems] = useState<GroceryItem[]>([]);
+  const [showRecentDialog, setShowRecentDialog] = useState(false);
+
   useEffect(() => {
     if (user?.id) {
       loadGroceryListAndSuggestions();
       loadHouseholdColors();
     }
   }, [user]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('recentGroceries');
+    if (saved) {
+      try { setRecentItems(JSON.parse(saved)); } catch {}
+    }
+  }, []);
 
   const loadGroceryListAndSuggestions = async () => {
     // First load the existing grocery list
@@ -403,23 +414,23 @@ export default function GroceryListPage() {
 
       if (purchasedIds.length === 0) return;
 
-      // Update database
+      // Soft delete in DB
+      const now = new Date().toISOString();
       const { error } = await supabase
         .from('food_requests')
-        .update({ 
-          is_purchased: false,
-          purchased_at: null
-        })
+        .update({ deleted_at: now })
         .in('id', purchasedIds);
-
       if (error) throw error;
 
-      // Update local state
-      setItems(prev => prev.map(item => 
-        item.is_purchased ? { ...item, is_purchased: false } : item
-      ));
+      // Update local state - remove from items
+      setItems(prev => prev.filter(item => !purchasedIds.includes(item.id)));
 
-      toast.success('All items cleared from purchased list');
+      // Update recent items (max 30)
+      const updatedRecent = [...purchasedItems, ...recentItems].slice(0, 30);
+      setRecentItems(updatedRecent);
+      localStorage.setItem('recentGroceries', JSON.stringify(updatedRecent));
+
+      toast.success('Purchased items moved to recent');
     } catch (error) {
       console.error('Error clearing purchased items:', error);
       toast.error('Failed to clear purchased items');
@@ -518,6 +529,9 @@ export default function GroceryListPage() {
                 <Button onClick={() => setShowAddDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Item
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setShowRecentDialog(true)} className="ml-2 text-muted-foreground">
+                  Recent Groceries
                 </Button>
               </div>
               <div className="flex items-center gap-4">
@@ -807,6 +821,8 @@ export default function GroceryListPage() {
         onClose={() => setShowAddDialog(false)}
         onItemAdded={() => loadGroceryList()}
       />
+
+      <RecentGroceriesDialog isOpen={showRecentDialog} onClose={() => setShowRecentDialog(false)} items={recentItems} />
     </div>
   );
 } 
