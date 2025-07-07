@@ -7,13 +7,13 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/ui/dialog";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
@@ -45,6 +45,7 @@ interface Household {
   color?: string;
   is_personal?: boolean;
   created_by: string;
+  address?: string;
 }
 
 type SupabaseHouseholdMember = {
@@ -63,6 +64,8 @@ interface SupabaseHouseholdRow {
   name: string;
   color?: string;
   household_members: SupabaseHouseholdMember[];
+  is_personal?: boolean;
+  created_by: string;
 }
 
 // Predefined color options
@@ -131,56 +134,12 @@ export default function HouseholdsPage() {
         return;
       }
 
-      // First check if user has a personal household
-      const { data: personalHousehold, error: personalHouseholdError } = await supabase
-        .from('households')
-        .select('*')
-        .eq('created_by', user.id)
-        .eq('is_personal', true)
-        .single();
-
-      if (personalHouseholdError && personalHouseholdError.code !== 'PGRST116') {
-        console.error('Error checking personal household:', personalHouseholdError);
-      }
-
-      // If no personal household exists, create one
-      if (!personalHousehold) {
-        const { data: newPersonalHousehold, error: createError } = await supabase
-          .from('households')
-          .insert([
-            {
-              name: `${user.user_metadata.full_name || 'Personal'} Household`,
-              created_by: user.id,
-              is_personal: true
-            }
-          ])
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating personal household:', createError);
-        } else if (newPersonalHousehold) {
-          // Add user as admin member of their personal household
-          const { error: memberError } = await supabase
-            .from('household_members')
-            .insert([
-              {
-                household_id: newPersonalHousehold.id,
-                user_id: user.id,
-                role: 'admin',
-                dietary_preferences: {},
-                allergies: [],
-              }
-            ]);
-
-          if (memberError) {
-            console.error('Error adding member to personal household:', memberError);
-          }
-        }
-      }
-
-      // Now load all households as before
-      console.log('Loading households for user:', user.id);
+      // NOTE: Personal households are automatically created by a database trigger when a user
+      // signs up, and the user is added as an admin member in the same transaction.  
+      // Because of row-level-security (RLS) rules we cannot reliably read that     
+      // household until the membership row exists, so any explicit check/creation   
+      // here could race and cause a duplicate-key error. We therefore rely solely   
+      // on the membership query below to discover the user's households.
 
       // First, let's try a simpler query to see if the user has any household memberships
       const { data: membershipData, error: membershipError } = await supabase
@@ -212,6 +171,8 @@ export default function HouseholdsPage() {
           id,
           name,
           color,
+          is_personal,
+          created_by,
           household_members (
             user_id,
             role,
@@ -259,8 +220,8 @@ export default function HouseholdsPage() {
             role: member.role || 'member',
           })) || [],
           isExpanded: false,
-          is_personal: false,
-          created_by: '',
+          is_personal: household.is_personal ?? false,
+          created_by: household.created_by || '',
         };
       });
 
@@ -332,17 +293,17 @@ export default function HouseholdsPage() {
         isPersonal: false
       });
 
-      // First, create the household
-      const { data: household, error: householdError } = await supabase
+      // Create the household and return its id (RETURNING is allowed on the same insert)
+      const { data: createdHousehold, error: householdError } = await supabase
         .from('households')
         .insert([
           { 
             name: newHouseholdName.trim(), 
             created_by: user.id,
-            is_personal: false
+            is_personal: false,
           }
         ])
-        .select()
+        .select('id')
         .single();
 
       if (householdError) {
@@ -353,24 +314,24 @@ export default function HouseholdsPage() {
           hint: householdError.hint,
           code: householdError.code
         });
-        toast.error(`Failed to create household: ${householdError.message}`);
+        toast.error(`Failed to create household: ${householdError.message || 'Unknown error'}`);
         return;
       }
 
-      if (!household) {
-        console.error('No household data returned after creation');
-        toast.error('Failed to create household. Please try again.');
+      if (!createdHousehold) {
+        toast.error('Household was created but ID was not returned');
         return;
       }
 
-      console.log('Household created successfully:', household);
+      const newHouseholdId = createdHousehold.id.toString();
+      console.log('Household created successfully with ID:', newHouseholdId);
 
-      // Then, add the creator as an admin member
+      // Then, add the creator as an admin member (now passes RLS because household_id is known)
       const { error: memberError } = await supabase
         .from('household_members')
         .insert([
           {
-            household_id: household.id,
+            household_id: newHouseholdId,
             user_id: user.id,
             role: 'admin',
             dietary_preferences: {},
@@ -391,7 +352,7 @@ export default function HouseholdsPage() {
         const { error: deleteError } = await supabase
           .from('households')
           .delete()
-          .eq('id', household.id);
+          .eq('id', newHouseholdId);
           
         if (deleteError) {
           console.error('Error cleaning up household after member creation failed:', deleteError);
@@ -403,7 +364,7 @@ export default function HouseholdsPage() {
 
       console.log('Member added successfully');
 
-      // Reload households
+      // We don't have the full household row due to RLS, so just reload households list
       await loadHouseholds();
       setNewHouseholdName('');
       setCreateDialogOpen(false);

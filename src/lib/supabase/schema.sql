@@ -22,6 +22,7 @@ create table household_members (
   role text not null check (role in ('admin', 'member')),
   dietary_preferences jsonb default '{}',
   allergies text[],
+  shopping_preferences jsonb default '{}',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   primary key (household_id, user_id)
 );
@@ -60,6 +61,14 @@ create table dietary_preferences (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Create stores table
+CREATE TABLE IF NOT EXISTS stores (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name text NOT NULL UNIQUE,
+  created_by uuid REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Enable Row Level Security (RLS)
 alter table profiles enable row level security;
 alter table households enable row level security;
@@ -67,6 +76,7 @@ alter table household_members enable row level security;
 alter table shopping_lists enable row level security;
 alter table list_items enable row level security;
 alter table dietary_preferences enable row level security;
+alter table stores enable row level security;
 
 -- Create policies
 create policy "Users can view their own profile"
@@ -117,6 +127,21 @@ create policy "Household members can view items"
       and household_members.user_id = auth.uid()
     )
   );
+
+-- Enable RLS and policies for stores
+DROP POLICY IF EXISTS "stores_select" ON stores;
+DROP POLICY IF EXISTS "stores_insert" ON stores;
+
+CREATE POLICY "stores_select" ON stores
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "stores_insert" ON stores
+  FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL AND created_by = auth.uid());
+
+-- Index for case-insensitive lookup
+CREATE INDEX IF NOT EXISTS stores_name_idx ON stores (lower(name));
 
 -- Create indexes for better performance
 create index household_members_user_id_idx on household_members(user_id);

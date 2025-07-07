@@ -1,4 +1,4 @@
-import { GroceryItem } from "@/types/components";
+import { GroceryItem } from "@/types/grocery";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import {
@@ -33,7 +33,7 @@ export function RecentGroceriesDialog({ isOpen, onClose, items }: RecentGrocerie
             {items.map((item) => (
               <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
-                  <p className="font-medium">{item.item_name}</p>
+                  <p className="font-medium">{(item as any).item_name || item.name}</p>
                   <div className="text-sm text-muted-foreground">
                     {item.quantity} {item.unit} • {item.section || "Uncategorized"}
                   </div>

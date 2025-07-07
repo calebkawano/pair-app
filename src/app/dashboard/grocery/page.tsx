@@ -13,11 +13,13 @@ import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Check, ChevronDown, ChevronUp, Edit2, Plus, Save, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface GroceryItem {
   id: number;
+  name: string;
+  category: string;
   item_name: string;
   item_description: string | null;
   quantity: number;
@@ -66,12 +68,30 @@ export default function GroceryListPage() {
   const supabase = createClient();
 
   // Sort & Filter state
-  const [sortBy, setSortBy] = useState<'household' | 'priority' | 'quantity' | 'requester'>('priority');
+  const [sortBy, setSortBy] = useState<'household' | 'priority' | 'quantity' | 'requester' | 'category' | 'store'>('priority');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [sectionFilter, setSectionFilter] = useState<string>('all');
 
+  const [recentItems, setRecentItems] = useState<GroceryItem[]>([]);
+  const [showRecentDialog, setShowRecentDialog] = useState(false);
+
   // Get unique sections from items
   const sections = ['all', ...new Set(items.filter(item => item.section).map(item => item.section as string))];
+
+  // Create stable dependencies for smart summary that only change when items actually change
+  const itemsStableKey = useMemo(() => {
+    return items.map(item => `${item.id}-${item.is_purchased}-${item.item_name}-${item.quantity}-${item.section}`).join('|');
+  }, [items]);
+
+  // Memoize the smart summary items to prevent recalculation on sorting/filtering
+  const smartSummaryItems = useMemo(() => {
+    const unpurchasedItems = items.filter(item => !item.is_purchased);
+    return unpurchasedItems.map(item => ({
+      ...item,
+      name: item.item_name,
+      category: item.section || 'Uncategorized'
+    }));
+  }, [itemsStableKey]); // Use stable key instead of unpurchasedItems
 
   // Get household color based on saved color or default hash
   const getHouseholdColor = (householdName: string) => {
@@ -88,9 +108,6 @@ export default function GroceryListPage() {
     }, 0);
     return HOUSEHOLD_COLORS[Math.abs(hash) % HOUSEHOLD_COLORS.length];
   };
-
-  const [recentItems, setRecentItems] = useState<GroceryItem[]>([]);
-  const [showRecentDialog, setShowRecentDialog] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -134,6 +151,8 @@ export default function GroceryListPage() {
 
             return {
               id: Date.now() + index, // Generate unique IDs
+              name: 'AI Suggested',
+              category: category,
               item_name: name,
               item_description: `${cookingUses.join(', ')}. Storage: ${storageTips}. Nutrition: ${nutritionalHighlights.join(', ')}`,
               quantity,
@@ -457,10 +476,7 @@ export default function GroceryListPage() {
     );
   }
 
-  const unpurchasedItems = items.filter(item => !item.is_purchased);
-  const purchasedItemsList = items.filter(item => item.is_purchased);
-
-  // Filter & Sort logic
+  // Sort & Filter logic
   const filterAndSortItems = (items: GroceryItem[]) => {
     let filtered = items;
     
@@ -487,6 +503,17 @@ export default function GroceryListPage() {
           const pb = b.priority ?? 'normal';
           comparison = pa === pb ? 0 : pa === 'urgent' ? -1 : 1;
           break;
+        case 'category':
+          const ca = a.section ?? 'Uncategorized';
+          const cb = b.section ?? 'Uncategorized';
+          comparison = ca.localeCompare(cb);
+          break;
+        case 'store':
+          // For now, sort by section since we don't have separate store data
+          const sa = a.section ?? 'Uncategorized';
+          const sb = b.section ?? 'Uncategorized';
+          comparison = sa.localeCompare(sb);
+          break;
         default:
           comparison = 0;
       }
@@ -494,7 +521,10 @@ export default function GroceryListPage() {
     });
   };
 
-  const sortedUnpurchased = filterAndSortItems(unpurchasedItems);
+  const purchasedItemsList = items.filter(item => item.is_purchased);
+
+  // Only sort the display lists, keep original items for optimization
+  const sortedUnpurchased = filterAndSortItems(items.filter(item => !item.is_purchased));
   const sortedPurchased = filterAndSortItems(purchasedItemsList);
 
   return (
@@ -514,12 +544,8 @@ export default function GroceryListPage() {
         </Card>
       ) : (
         <div className="space-y-8">
-          {/* Smart Shopping Summary */}
-          <SmartShoppingSummary items={unpurchasedItems.map(item => ({
-            ...item,
-            name: item.item_name,
-            category: item.section || 'Uncategorized'
-          }))} />
+          {/* Smart Shopping Summary - Pass memoized items that won't change on sort/filter */}
+          <SmartShoppingSummary items={smartSummaryItems} />
 
           {/* Unpurchased Items */}
           <div className="space-y-4">
@@ -539,12 +565,13 @@ export default function GroceryListPage() {
                 <div className="flex items-center gap-2">
                   <Select value={sectionFilter} onValueChange={setSectionFilter}>
                     <SelectTrigger className="w-40">
-                      <SelectValue placeholder="All Sections" />
+                      <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sections.map((section) => (
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {sections.filter(s => s !== 'all').map((section) => (
                         <SelectItem key={section} value={section}>
-                          {section === 'all' ? 'All Sections' : section}
+                          {section}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -561,6 +588,7 @@ export default function GroceryListPage() {
                       <SelectItem value="household">Household</SelectItem>
                       <SelectItem value="quantity">Quantity</SelectItem>
                       <SelectItem value="requester">Requested By</SelectItem>
+                      <SelectItem value="category">Category</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button

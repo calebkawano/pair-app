@@ -1,24 +1,54 @@
 "use client";
 
+import { FlexInput, FlexValue } from "@/components/FlexInput";
 import { DietarySuggestionsDialog } from '@/features/grocery/components/dietary-suggestions-dialog';
 import { getDietarySuggestions } from '@/lib/api/dietary';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/ui/button';
 import { Card } from '@/ui/card';
-import { Input } from '@/ui/input';
-import { Label } from '@/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select';
-import { Textarea } from '@/ui/textarea';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface DietaryFormData {
-  dietaryGoal: string;
-  favoriteFood: string;
-  cookingTime: string;
-  servingCount: string;
+  dietaryGoal: FlexValue;
+  favoriteFood: FlexValue;
+  cookingTime: FlexValue;
+  servingCount: FlexValue;
 }
+
+// Dropdown options
+const DIETARY_GOAL_OPTIONS = [
+  { label: "Healthy Eating", value: "healthy" },
+  { label: "Weight Loss", value: "weight-loss" },
+  { label: "Muscle Gain", value: "muscle-gain" },
+  { label: "Balanced Diet", value: "balanced" },
+  { label: "Vegetarian", value: "vegetarian" },
+  { label: "Vegan", value: "vegan" },
+  { label: "Keto", value: "keto" },
+  { label: "Paleo", value: "paleo" },
+];
+
+const COOKING_TIME_OPTIONS = [
+  { label: "Minimal (15-20 mins)", value: "minimal" },
+  { label: "Moderate (30-45 mins)", value: "moderate" },
+  { label: "Cooking is my hobby (1+ hours)", value: "hobby" },
+  { label: "Weekly meal prep", value: "meal-prep" },
+];
+
+// Placeholder categories – can be populated from meals data later
+const FOOD_CATEGORY_OPTIONS = [
+  { label: "Italian", value: "italian" },
+  { label: "Mexican", value: "mexican" },
+  { label: "Chinese", value: "chinese" },
+  { label: "Indian", value: "indian" },
+  { label: "Japanese", value: "japanese" },
+];
+
+const PEOPLE_OPTIONS = Array.from({ length: 10 }).map((_, i) => ({
+  label: `${i + 1}`,
+  value: `${i + 1}`,
+}));
 
 export default function DietaryPreferencesPage() {
   const router = useRouter();
@@ -27,10 +57,10 @@ export default function DietaryPreferencesPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [formData, setFormData] = useState<DietaryFormData>({
-    dietaryGoal: '',
-    favoriteFood: '',
-    cookingTime: '',
-    servingCount: '',
+    dietaryGoal: { type: "dropdown", value: "" },
+    favoriteFood: { type: "text", value: "" },
+    cookingTime: { type: "dropdown", value: "" },
+    servingCount: { type: "dropdown", value: "" },
   });
   const supabase = createClient();
 
@@ -54,21 +84,21 @@ export default function DietaryPreferencesPage() {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (memberRow?.dietary_preferences) {
-        setFormData(memberRow.dietary_preferences as DietaryFormData);
+        const saved = memberRow.dietary_preferences as any;
+        setFormData({
+          dietaryGoal: saved.dietaryGoal ?? { type: "dropdown", value: "" },
+          favoriteFood: saved.favoriteFood ?? { type: "text", value: "" },
+          cookingTime: saved.cookingTime ?? { type: "dropdown", value: "" },
+          servingCount: saved.servingCount ?? { type: "dropdown", value: "" },
+        });
       }
     } catch (error) {
       console.error('Error loading dietary preferences:', error);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
-  };
-
-  const handleSelectChange = (value: string, field: keyof DietaryFormData) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const handleFlexInputChange = (field: keyof DietaryFormData, v: FlexValue) =>
+    setFormData((prev) => ({ ...prev, [field]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +116,7 @@ export default function DietaryPreferencesPage() {
       // Update dietary_preferences on all membership rows for this user
       const { error } = await supabase
         .from('household_members')
-        .update({ dietary_preferences: formData })
+        .update({ dietary_preferences: formData as any })
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -101,14 +131,22 @@ export default function DietaryPreferencesPage() {
   };
 
   const handleGenerateGroceryList = async () => {
-    if (!formData.dietaryGoal) {
+    if (!formData.dietaryGoal.value) {
       toast.error('Please fill in your dietary preferences first');
       return;
     }
 
     setIsGenerating(true);
     try {
-      const suggestions = await getDietarySuggestions(formData);
+      // Map FlexValues to plain strings for the AI endpoint
+      const plainFormData = {
+        dietaryGoal: formData.dietaryGoal.value,
+        favoriteFood: formData.favoriteFood.value,
+        cookingTime: formData.cookingTime.value,
+        servingCount: formData.servingCount.value,
+      };
+
+      const suggestions = await getDietarySuggestions(plainFormData);
       setSuggestions(suggestions);
       setShowSuggestions(true);
     } catch (error) {
@@ -117,6 +155,14 @@ export default function DietaryPreferencesPage() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Helper to derive plain string prefs for external components
+  const plainFormData = {
+    dietaryGoal: formData.dietaryGoal.value,
+    favoriteFood: formData.favoriteFood.value,
+    cookingTime: formData.cookingTime.value,
+    servingCount: formData.servingCount.value,
   };
 
   return (
@@ -132,63 +178,46 @@ export default function DietaryPreferencesPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="p-6 space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="dietaryGoal">Dietary Goal</Label>
-              <Select 
-                value={formData.dietaryGoal} 
-                onValueChange={(value) => handleSelectChange(value, "dietaryGoal")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select your dietary goal" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="healthy">Healthy Eating</SelectItem>
-                  <SelectItem value="weight-loss">Weight Loss</SelectItem>
-                  <SelectItem value="muscle-gain">Muscle Gain</SelectItem>
-                  <SelectItem value="balanced">Balanced Diet</SelectItem>
-                  <SelectItem value="vegetarian">Vegetarian</SelectItem>
-                  <SelectItem value="vegan">Vegan</SelectItem>
-                  <SelectItem value="keto">Keto</SelectItem>
-                  <SelectItem value="paleo">Paleo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="favoriteFood">Favorite Types of Food</Label>
-              <Textarea
-                id="favoriteFood"
-                placeholder="E.g., Italian, Asian fusion, Mexican..."
-                value={formData.favoriteFood}
-                onChange={handleInputChange}
+              <FlexInput
+                id="dietaryGoal"
+                label="Dietary Goal"
+                value={formData.dietaryGoal}
+                onChange={(v) => handleFlexInputChange("dietaryGoal", v)}
+                options={DIETARY_GOAL_OPTIONS}
+                placeholder="Select or type dietary goal"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cookingTime">Cooking Time Preference</Label>
-              <Select 
-                value={formData.cookingTime} 
-                onValueChange={(value) => handleSelectChange(value, "cookingTime")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select cooking time preference" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="minimal">Minimal (15-20 mins)</SelectItem>
-                  <SelectItem value="moderate">Moderate (30-45 mins)</SelectItem>
-                  <SelectItem value="hobby">Cooking is my hobby (1+ hours)</SelectItem>
-                  <SelectItem value="meal-prep">Weekly meal prep</SelectItem>
-                </SelectContent>
-              </Select>
+              <FlexInput
+                id="favoriteFood"
+                label="Favorite Types of Food"
+                value={formData.favoriteFood}
+                onChange={(v) => handleFlexInputChange("favoriteFood", v)}
+                options={FOOD_CATEGORY_OPTIONS}
+                placeholder="Enter or select favorite food types"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="servingCount">Number of People</Label>
-              <Input
+              <FlexInput
+                id="cookingTime"
+                label="Cooking Time Preference"
+                value={formData.cookingTime}
+                onChange={(v) => handleFlexInputChange("cookingTime", v)}
+                options={COOKING_TIME_OPTIONS}
+                placeholder="Select or enter cooking time"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <FlexInput
                 id="servingCount"
-                type="number"
-                placeholder="How many people are you shopping for?"
+                label="Number of People"
                 value={formData.servingCount}
-                onChange={handleInputChange}
+                onChange={(v) => handleFlexInputChange("servingCount", v)}
+                options={PEOPLE_OPTIONS}
+                placeholder="Enter number of people"
               />
             </div>
           </Card>
@@ -223,7 +252,7 @@ export default function DietaryPreferencesPage() {
         isOpen={showSuggestions}
         onClose={() => setShowSuggestions(false)}
         suggestions={suggestions}
-        dietaryPreferences={formData}
+        dietaryPreferences={plainFormData}
       />
     </div>
   );

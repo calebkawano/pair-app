@@ -273,4 +273,21 @@ export async function softDeleteFoodRequest(requestId: number, userId: string): 
     console.error('Error soft deleting food request:', error);
     throw new SupabaseError('Failed to delete food request', error.code, error.message);
   }
+}
+
+export async function saveShoppingPreferences(userId: string, prefs: Record<string, unknown>): Promise<void> {
+  if (!userId) {
+    throw new SupabaseError('User ID is required');
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('household_members')
+    .update({ shopping_preferences: prefs })
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error saving shopping preferences:', error);
+    throw new SupabaseError('Failed to save shopping preferences', error.code, error.message);
+  }
 } 

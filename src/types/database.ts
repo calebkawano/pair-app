@@ -20,6 +20,7 @@ export interface HouseholdMember {
   role: 'admin' | 'member';
   dietary_preferences: Record<string, any>;
   allergies: string[];
+  shopping_preferences: Record<string, any>;
   created_at: string;
 }
 
@@ -86,6 +87,13 @@ export interface PriceTrends {
   price_trend: number;
 }
 
+export interface Store {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -123,6 +131,11 @@ export interface Database {
         Row: PriceHistory;
         Insert: Omit<PriceHistory, 'id' | 'recorded_at'>;
         Update: Partial<PriceHistory>;
+      };
+      stores: {
+        Row: Store;
+        Insert: Omit<Store, 'id' | 'created_at'>;
+        Update: Partial<Store>;
       };
     };
     Functions: {

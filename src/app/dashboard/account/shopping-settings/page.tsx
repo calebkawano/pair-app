@@ -1,21 +1,20 @@
 "use client";
 
+import { FlexInput, FlexValue } from "@/components/FlexInput";
 import { getShoppingSuggestions } from '@/lib/api/shopping';
+import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/ui/badge';
 import { Button } from '@/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
-import { Input } from '@/ui/input';
-import { Label } from '@/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
 interface ShoppingFormData {
-  budget: string;
-  shoppingFrequency: string;
-  favoriteStores: string;
-  avoidStores: string;
+  budget: FlexValue;
+  shoppingFrequency: FlexValue;
+  favoriteStores: FlexValue;
+  avoidStores: FlexValue;
 }
 
 interface ShoppingRecommendations {
@@ -33,38 +32,68 @@ interface ShoppingRecommendations {
   schedulingAdvice: string;
 }
 
+const BUDGET_OPTIONS = [
+  { label: "$200", value: "200" },
+  { label: "$300", value: "300" },
+  { label: "$400", value: "400" },
+  { label: "$500", value: "500" },
+  { label: "$750", value: "750" },
+  { label: "$1000", value: "1000" },
+];
+
+const FREQUENCY_OPTIONS = [
+  { label: "Daily", value: "daily" },
+  { label: "Weekly", value: "weekly" },
+  { label: "Bi-weekly", value: "biweekly" },
+  { label: "Monthly", value: "monthly" },
+];
+
+// We'll fetch real store list later; placeholder values
+const STORE_OPTIONS_PLACEHOLDER = [
+  { label: "Walmart", value: "Walmart" },
+  { label: "Costco", value: "Costco" },
+  { label: "Target", value: "Target" },
+  { label: "Trader Joe's", value: "Trader Joe's" },
+];
+
 export default function ShoppingSettingsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<ShoppingRecommendations | null>(null);
   const [formData, setFormData] = useState<ShoppingFormData>({
-    budget: '',
-    shoppingFrequency: '',
-    favoriteStores: '',
-    avoidStores: '',
+    budget: { type: "dropdown", value: "" },
+    shoppingFrequency: { type: "dropdown", value: "" },
+    favoriteStores: { type: "text", value: "" },
+    avoidStores: { type: "text", value: "" },
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
-  };
-
-  const handleSelectChange = (value: string, field: keyof ShoppingFormData) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const handleFlexChange = (field: keyof ShoppingFormData, v: FlexValue) =>
+    setFormData((prev) => ({ ...prev, [field]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Store the settings in localStorage
+      const plainForm = {
+        budget: formData.budget.value,
+        shoppingFrequency: formData.shoppingFrequency.value,
+        favoriteStores: formData.favoriteStores.value,
+        avoidStores: formData.avoidStores.value,
+      };
+      localStorage.setItem('shoppingSettings', JSON.stringify(plainForm));
+      
       // Call the shopping suggestions API
-      const suggestions = await getShoppingSuggestions(formData);
+      const suggestions = await getShoppingSuggestions(plainForm);
       
       setRecommendations(suggestions);
       
-      // Store the settings in localStorage
-      localStorage.setItem('shoppingSettings', JSON.stringify(formData));
+      // Persist to Supabase (shopping_preferences)
+      const { data: { user } } = await createClient().auth.getUser();
+      if (user) {
+        await (await import('@/lib/supabase/actions')).saveShoppingPreferences(user.id, formData as any);
+      }
       
       toast.success('Shopping settings saved successfully!');
       
@@ -92,52 +121,26 @@ export default function ShoppingSettingsPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <Card className="p-6 space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="budget">Monthly Grocery Budget ($)</Label>
-                  <Input
+                  <FlexInput
                     id="budget"
-                    type="number"
-                    placeholder="e.g., 500"
+                    label="Monthly Grocery Budget ($)"
                     value={formData.budget}
-                    onChange={handleInputChange}
+                    onChange={(v)=>handleFlexChange('budget',v)}
+                    options={BUDGET_OPTIONS}
+                    placeholder="e.g., 500"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="shoppingFrequency">Shopping Frequency</Label>
-                  <Select 
-                    value={formData.shoppingFrequency} 
-                    onValueChange={(value) => handleSelectChange(value, "shoppingFrequency")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select shopping frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="biweekly">Bi-weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FlexInput id="shoppingFrequency" label="Shopping Frequency" value={formData.shoppingFrequency} onChange={(v)=>handleFlexChange('shoppingFrequency',v)} options={FREQUENCY_OPTIONS} placeholder="Select frequency" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="favoriteStores">Preferred Stores</Label>
-                  <Input
-                    id="favoriteStores"
-                    placeholder="E.g., Walmart, Trader Joe's, Costco"
-                    value={formData.favoriteStores}
-                    onChange={handleInputChange}
-                  />
+                  <FlexInput id="favoriteStores" label="Preferred Stores" value={formData.favoriteStores} onChange={(v)=>handleFlexChange('favoriteStores',v)} options={STORE_OPTIONS_PLACEHOLDER} placeholder="Walmart, Trader Joe's" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="avoidStores">Stores to Avoid</Label>
-                  <Input
-                    id="avoidStores"
-                    placeholder="E.g., Whole Foods, Target"
-                    value={formData.avoidStores}
-                    onChange={handleInputChange}
-                  />
+                  <FlexInput id="avoidStores" label="Stores to Avoid" value={formData.avoidStores} onChange={(v)=>handleFlexChange('avoidStores',v)} options={STORE_OPTIONS_PLACEHOLDER} placeholder="Whole Foods" />
                 </div>
               </Card>
 
@@ -168,7 +171,7 @@ export default function ShoppingSettingsPage() {
                   <CardHeader>
                     <CardTitle>Budget Breakdown</CardTitle>
                     <CardDescription>
-                      Suggested allocation for your ${formData.budget} monthly budget
+                      Suggested allocation for your ${formData.budget.value} monthly budget
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">

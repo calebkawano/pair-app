@@ -4,12 +4,12 @@ import { STORE_SECTIONS } from '@/constants/store';
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/ui/dialog";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
@@ -24,6 +24,11 @@ interface FoodRequestDialogProps {
   householdId: string;
   onRequestCreated: () => void;
 }
+
+// Available units for dropdown - shared with grocery add item
+const UNITS = [
+  'pcs', 'lbs', 'oz', 'kg', 'g', 'cups', 'tbsp', 'tsp', 'bottles', 'cans', 'boxes', 'bags', 'loaves'
+];
 
 export function FoodRequestDialog({
   isOpen,
@@ -138,13 +143,22 @@ export function FoodRequestDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="unit">Unit (Optional)</Label>
-              <Input
-                id="unit"
+              <Label htmlFor="unit">Unit</Label>
+              <Select
                 value={formData.unit}
-                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                placeholder="e.g., lbs, pcs"
-              />
+                onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNITS.map((unit) => (
+                    <SelectItem key={unit} value={unit}>
+                      {unit}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
