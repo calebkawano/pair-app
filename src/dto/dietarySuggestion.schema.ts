@@ -20,12 +20,12 @@ export const dietaryPreferencesSchema = z.object({
   })
 });
 
-// Plain dietary preferences for API calls
+// Plain dietary preferences for API calls (now optional)
 export const plainDietaryPreferencesSchema = z.object({
-  dietaryGoal: z.string(),
-  favoriteFood: z.string(),
-  cookingTime: z.string(),
-  servingCount: z.string()
+  dietaryGoal: z.string().optional(),
+  favoriteFood: z.string().optional(),
+  cookingTime: z.string().optional(),
+  servingCount: z.string().optional()
 });
 
 // Dietary suggestion item schema (from API response)

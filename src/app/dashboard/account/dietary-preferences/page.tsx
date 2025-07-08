@@ -11,10 +11,11 @@ import { DietarySuggestionsDialog } from '@/features/grocery/components/dietary-
 import { getDietarySuggestions } from '@/lib/api/dietary';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/client';
+import { useActiveHousehold } from '@/lib/use-supabase';
 import { Button } from '@/ui/button';
 import { Card } from '@/ui/card';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 // Lazy-load constant options to avoid bundling static data multiple times
@@ -71,6 +72,7 @@ export default function DietaryPreferencesPage() {
     servingCount: { type: "dropdown", value: "" },
   });
   const supabase = createClient();
+  const activeHouseholdId = useActiveHousehold();
 
   // Option state loaded on first render
   const [options, setOptions] = useState<{
@@ -79,35 +81,23 @@ export default function DietaryPreferencesPage() {
     CATEGORIES: { label: string; value: string }[];
   }>({ GOALS: [], COOKING_TIMES: [], CATEGORIES: [] });
 
-  useEffect(() => {
-    // Dynamically import the constants – could be replaced with API call later
-    loadDietaryConstants().then(setOptions).catch((err) => {
-      logger.error('Failed to load dietary constants', err);
-      toast.error('Unable to load dietary options. Please refresh.');
-    });
-  }, []);
-
   // Memoised people options so array identity stays stable
   const PEOPLE_OPTIONS = useMemo(
     () => Array.from({ length: 10 }).map((_, i) => ({ label: `${i + 1}`, value: `${i + 1}` })),
     []
   );
 
-  useEffect(() => {
-    loadSavedPreferences();
-  }, []);
-
-  const loadSavedPreferences = async () => {
+  const loadSavedPreferences = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || !activeHouseholdId) return;
 
       const { data: memberRow, error } = await supabase
         .from('household_members')
         .select('dietary_preferences')
         .eq('user_id', user.id)
-        .limit(1)
-        .single();
+        .eq('household_id', activeHouseholdId)
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
 
@@ -122,10 +112,10 @@ export default function DietaryPreferencesPage() {
           if (legacyParse.success) {
             const legacy = legacyParse.data;
             const upgraded: DietaryPreferences = {
-              dietaryGoal: { type: 'text', value: legacy.dietaryGoal },
-              favoriteFood: { type: 'text', value: legacy.favoriteFood },
-              cookingTime: { type: 'text', value: legacy.cookingTime },
-              servingCount: { type: 'text', value: legacy.servingCount },
+              dietaryGoal: { type: 'text', value: legacy.dietaryGoal ?? '' },
+              favoriteFood: { type: 'text', value: legacy.favoriteFood ?? '' }, 
+              cookingTime: { type: 'text', value: legacy.cookingTime ?? '' },
+              servingCount: { type: 'text', value: legacy.servingCount ?? '' },
             };
             setFormData(upgraded);
             // Optionally persist upgraded format back
@@ -133,7 +123,8 @@ export default function DietaryPreferencesPage() {
               await supabase
                 .from('household_members')
                 .update({ dietary_preferences: upgraded })
-                .eq('user_id', user.id);
+                .eq('user_id', user.id)
+                .eq('household_id', activeHouseholdId);
             } catch (persistErr) {
               logger.warn('Failed to upgrade stored dietary preferences', persistErr);
             }
@@ -147,7 +138,21 @@ export default function DietaryPreferencesPage() {
     } catch (error) {
       logger.error('Error loading dietary preferences:', error);
     }
-  };
+  }, [supabase, activeHouseholdId]);
+
+  useEffect(() => {
+    // Dynamically import the constants – could be replaced with API call later
+    loadDietaryConstants().then(setOptions).catch((err) => {
+      logger.error('Failed to load dietary constants', err);
+      toast.error('Unable to load dietary options. Please refresh.');
+    });
+  }, []);
+
+  useEffect(() => {
+    if (activeHouseholdId) {
+      loadSavedPreferences();
+    }
+  }, [activeHouseholdId, loadSavedPreferences]);
 
   const handleFlexInputChange = (field: keyof DietaryPreferences, v: FlexValue) =>
     setFormData((prev) => ({ ...prev, [field]: v }));
@@ -164,21 +169,33 @@ export default function DietaryPreferencesPage() {
         return;
       }
 
+      if (!activeHouseholdId) {
+        toast.error('No active household found. Please refresh the page.');
+        return;
+      }
+
       if (process.env.NODE_ENV !== 'production') {
         logger.info('Saving preferences to household_members:', formData);
       }
 
+      // Use upsert to ensure the row is created if it doesn't exist
       const { error } = await supabase
         .from('household_members')
-        .update({ dietary_preferences: formData })
-        .eq('user_id', user.id);
+        .upsert({
+          household_id: activeHouseholdId,
+          user_id: user.id,
+          dietary_preferences: formData,
+          role: 'admin', // Default role if creating new row
+        }, {
+          onConflict: 'household_id,user_id'
+        });
 
       if (error) throw error;
 
       toast.success('Dietary preferences saved successfully!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error saving dietary preferences:', error);
-      toast.error(`Failed to save dietary preferences: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to save dietary preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSaving(false);
     }
@@ -280,7 +297,7 @@ export default function DietaryPreferencesPage() {
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Back
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || !activeHouseholdId}>
                 {isSaving ? 'Saving...' : 'Save Preferences'}
               </Button>
               <Button type="button" variant="default" onClick={handleGenerateGroceryList} disabled={isGenerating}>

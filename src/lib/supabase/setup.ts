@@ -1,8 +1,8 @@
 import { logger } from '@/lib/logger';
-import { createClient } from './server';
+import { createClient } from './client';
 
 export async function ensureDatabaseSetup() {
-  const supabase = await createClient();
+  const supabase = createClient();
   
   try {
     // Check if food_requests table exists and has the required columns
@@ -30,7 +30,7 @@ export async function ensureDatabaseSetup() {
 }
 
 export async function createFoodRequestsTable() {
-  const supabase = await createClient();
+  const supabase = createClient();
   
   try {
     // This would need to be run with admin privileges

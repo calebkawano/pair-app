@@ -5,11 +5,12 @@ import { requireUser } from '@/middleware';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+// Updated schema to make all fields optional
 const dietaryPreferencesSchema = z.object({
-  dietaryGoal: z.string().min(1, 'Dietary goal is required'),
-  favoriteFood: z.string().min(1, 'Favorite food is required'),
-  cookingTime: z.string().min(1, 'Cooking time is required'),
-  servingCount: z.string().min(1, 'Serving count is required'),
+  dietaryGoal: z.string().optional(),
+  favoriteFood: z.string().optional(),
+  cookingTime: z.string().optional(),
+  servingCount: z.string().optional(),
 });
 
 const requestBodySchema = z.object({
@@ -59,13 +60,27 @@ export async function POST(req: Request) {
       `${pref.item_name}: ${pref.preference_type} (${new Date(pref.created_at).toLocaleDateString()})`
     ).join('\n') || 'No past preferences';
 
-    // Create AI prompt focused on dietary and food aspects
-    const prompt = `Generate personalized food recommendations based on the following dietary preferences:
+    // Helper function to get value or default
+    const getValueOrDefault = (value: string | undefined, defaultValue: string) => 
+      value && value.trim() ? value : defaultValue;
 
-Dietary Goal: ${preferences.dietaryGoal}
-Favorite Foods: ${preferences.favoriteFood}
-Cooking Time Preference: ${preferences.cookingTime}
-Serving Count: ${preferences.servingCount}
+    // Provide defaults for missing preferences
+    const dietaryGoal = getValueOrDefault(preferences.dietaryGoal, 'general healthy eating');
+    const favoriteFood = getValueOrDefault(preferences.favoriteFood, 'variety of fresh, whole foods');
+    const cookingTime = getValueOrDefault(preferences.cookingTime, 'moderate (30-45 minutes)');
+    const servingCount = getValueOrDefault(preferences.servingCount, '2-4 people');
+
+    // Check if user provided any preferences
+    const hasAnyPreferences = Object.values(preferences).some(value => value && value.trim());
+    
+    // Create AI prompt that adapts to available information
+    const prompt = hasAnyPreferences 
+      ? `Generate personalized food recommendations based on the following dietary preferences:
+
+Dietary Goal: ${dietaryGoal}
+Favorite Foods: ${favoriteFood}
+Cooking Time Preference: ${cookingTime}
+Serving Count: ${servingCount}
 
 Past Food Item Preferences:
 ${pastPreferences}
@@ -75,7 +90,7 @@ Focus on nutritional value, dietary alignment, and cooking compatibility. Genera
 2. Match favorite food preferences
 3. Are suitable for the cooking time available
 4. Are portioned appropriately for the serving count
-5. That have variety in types of food (not just one type of food)
+5. Provide variety in types of food (proteins, vegetables, grains, fruits, etc.)
 
 For each recommended food item, provide:
 1. Item name
@@ -84,7 +99,7 @@ For each recommended food item, provide:
 4. Cooking versatility (what meals it can be used for)
 5. Storage tips
 6. Nutritional highlights
-7. Estimated price range (general)
+7. Estimated price range as numerical values (e.g., "$3-5", "$8-12", "$1-3")
 
 Format the response as a JSON array of objects with these exact fields:
 {
@@ -94,7 +109,41 @@ Format the response as a JSON array of objects with these exact fields:
       "category": "food category",
       "quantity": number,
       "unit": "unit name",
-      "priceRange": "price range",
+      "priceRange": "price range in format $X-Y",
+      "cookingUses": ["use1", "use2"],
+      "storageTips": "storage tip",
+      "nutritionalHighlights": ["highlight1", "highlight2"]
+    }
+  ]
+}`
+      : `Generate basic healthy food recommendations for general wellness. Since no specific preferences were provided, focus on:
+
+1. Essential nutrients and balanced nutrition
+2. Common, versatile ingredients suitable for various cooking styles
+3. Foods that support overall health and wellness
+4. A good mix of proteins, vegetables, fruits, grains, and healthy fats
+5. Items that are accessible and not too specialized
+
+Create a well-rounded grocery list that would support healthy meal preparation for a typical household.
+
+For each recommended food item, provide:
+1. Item name
+2. Food category/section
+3. Quantity and unit
+4. Cooking versatility (what meals it can be used for)
+5. Storage tips
+6. Nutritional highlights
+7. Estimated price range as numerical values (e.g., "$3-5", "$8-12", "$1-3")
+
+Format the response as a JSON array of objects with these exact fields:
+{
+  "items": [
+    {
+      "name": "item name",
+      "category": "food category",
+      "quantity": number,
+      "unit": "unit name",
+      "priceRange": "price range in format $X-Y",
       "cookingUses": ["use1", "use2"],
       "storageTips": "storage tip",
       "nutritionalHighlights": ["highlight1", "highlight2"]
@@ -117,12 +166,17 @@ Format the response as a JSON array of objects with these exact fields:
 
     const suggestions = await callChat(
       'gpt-3.5-turbo',
-      'You are a nutritionist and culinary expert that helps users choose foods that align with their dietary goals provided and cooking preferences also provided. Focus on nutritional value, meal compatibility, and dietary alignment. Always format responses as valid JSON arrays with the exact structure specified.',
+      'You are a nutritionist and culinary expert that helps users choose foods that align with their dietary goals and cooking preferences. When specific preferences are not provided, focus on general healthy eating principles. Always format responses as valid JSON arrays with the exact structure specified.',
       prompt,
       responseSchema
     );
 
-    requestLogger.info({ userId, itemCount: suggestions.items?.length }, 'Successfully generated dietary suggestions');
+    requestLogger.info({ 
+      userId, 
+      itemCount: suggestions.items?.length,
+      hasPreferences: hasAnyPreferences 
+    }, 'Successfully generated dietary suggestions');
+    
     return NextResponse.json(suggestions);
   } catch (error) {
     requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error generating dietary suggestions');

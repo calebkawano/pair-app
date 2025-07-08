@@ -147,6 +147,10 @@ export interface Database {
         };
         Returns: PriceTrends;
       };
+      get_active_household: {
+        Args: {};
+        Returns: string | null;
+      };
     };
   };
 } 

@@ -2,28 +2,28 @@
 
 import { PRIORITY_LEVELS, STORE_SECTIONS } from '@/constants/store';
 import { logger } from "@/lib/logger";
-import { createClient } from "@/lib/supabase/client";
+import { useActiveHousehold, useSupabase } from "@/lib/use-supabase";
 import { Button } from "@/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/ui/dialog";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Textarea } from "@/ui/textarea";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 // Available units for dropdown - matching the main grocery page
@@ -61,9 +61,9 @@ export function AddItemDialog({
     priority: 'normal',
     household_id: '',
   });
-  const [households, setHouseholds] = useState<Household[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const supabase = createClient();
+  const supabase = useSupabase();
+  const householdId = useActiveHousehold();
   const [aiFormData, setAiFormData] = useState({
     mealType: '',
     preferences: '',
@@ -72,67 +72,9 @@ export function AddItemDialog({
   });
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [addingItemIndex, setAddingItemIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadHouseholds();
-  }, []);
-
-  const loadHouseholds = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        logger.warn('Attempted to load households without authenticated user');
-        return;
-      }
-
-      if (process.env.NODE_ENV !== 'production') {
-        logger.info({ userId: user.id }, 'Loading households for user');
-      }
-      
-      const { data: memberData, error: memberError } = await supabase
-        .from('household_members')
-        .select('*, household:households(id, name)')
-        .eq('user_id', user.id);
-
-      if (memberError) {
-        logger.error({ error: memberError }, 'Failed to fetch household members');
-        toast.error(`Failed to load households: ${memberError.message}`);
-        return;
-      }
-
-      if (process.env.NODE_ENV !== 'production') {
-        logger.info({ memberData }, 'Retrieved household member data');
-      }
-
-      if (!memberData || memberData.length === 0) {
-        toast.error('You are not a member of any households yet');
-        return;
-      }
-
-      const uniqueHouseholds = (memberData as DatabaseHouseholdMember[])
-        .filter(member => member.household) // Filter out any null households
-        .reduce<Household[]>((acc, curr) => {
-          if (!acc.some(h => h.id === curr.household.id)) {
-            acc.push(curr.household);
-          }
-          return acc;
-        }, []);
-
-      if (process.env.NODE_ENV !== 'production') {
-        logger.info({ households: uniqueHouseholds }, 'Filtered unique households');
-      }
-      
-      setHouseholds(uniqueHouseholds);
-      
-      // If there's only one household, automatically select it
-      if (uniqueHouseholds.length === 1) {
-        setFormData(prev => ({ ...prev, household_id: uniqueHouseholds[0].id.toString() }));
-      }
-    } catch (error) {
-      logger.error({ error }, 'Failed to load households');
-      toast.error('Failed to load households. Please try again.');
-    }
-  };
+  // Household lookup is now handled by useActiveHousehold(); no additional effect required.
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
@@ -149,10 +91,65 @@ export function AddItemDialog({
         return;
       }
 
+      if (!householdId) {
+        toast.error('Unable to determine active household');
+        return;
+      }
+
+      // Verify user is actually a member of the household
+      const { data: membership, error: membershipError } = await supabase
+        .from('household_members')
+        .select('household_id, role')
+        .eq('user_id', user.id)
+        .eq('household_id', householdId)
+        .maybeSingle();
+
+      if (membershipError) {
+        logger.error('Error checking household membership:', {
+          membershipError,
+          userId: user.id,
+          householdId
+        });
+        toast.error('Unable to verify household membership');
+        return;
+      }
+
+      if (!membership) {
+        logger.error('User is not a member of the household:', {
+          userId: user.id,
+          householdId
+        });
+        toast.error('You are not a member of this household');
+        return;
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info('Household membership verified:', membership);
+      }
+
+      // Verify profile exists (food_requests.requested_by FK)
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profileRow) {
+        // Create minimal profile row so FK passes
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{ id: user.id, full_name: user.user_metadata?.full_name || user.email }]);
+        if (profileError) {
+          logger.error('Failed to create profile row for user', profileError);
+          toast.error('Could not set up user profile for grocery list');
+          return;
+        }
+      }
+
       if (process.env.NODE_ENV !== 'production') {
         logger.info({ 
           ...formData,
-          household_id: parseInt(formData.household_id)
+          household_id: householdId
         }, 'Adding new item to grocery list');
       }
 
@@ -161,7 +158,7 @@ export function AddItemDialog({
         .from('food_requests')
         .insert([
           {
-            household_id: parseInt(formData.household_id),
+            household_id: householdId,
             requested_by: user.id,
             item_name: formData.name.trim(),
             item_description: formData.notes.trim() || null,
@@ -195,7 +192,7 @@ export function AddItemDialog({
         notes: '',
         section: '',
         priority: 'normal',
-        household_id: formData.household_id, // Keep the last selected household
+        household_id: '', // retained for type consistency
       });
     } catch (error: any) {
       logger.error({ error }, 'Failed to add item to grocery list');
@@ -206,36 +203,182 @@ export function AddItemDialog({
   };
 
   const handleAiSuggest = async () => {
+    // Require at least one preference field before making the request
+    if (
+      !aiFormData.mealType.trim() &&
+      !aiFormData.preferences.trim() &&
+      !aiFormData.dietary.trim() &&
+      !aiFormData.occasion.trim()
+    ) {
+      toast.error('Please provide at least one preference for AI suggestions.');
+      return;
+    }
+
     try {
       setLoadingSuggestions(true);
-      const response = await fetch('/api/grocery-suggestions', {
+      const response = await fetch('/api/meal-grocery-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(aiFormData),
       });
 
-      if (!response.ok) throw new Error('Failed to get suggestions');
+      if (!response.ok) {
+        // Try to extract error details from the response if available
+        let errorMessage = 'Failed to get suggestions';
+        try {
+          const errJson = await response.json();
+          errorMessage = errJson.error || errorMessage;
+        } catch {}
+        throw new Error(errorMessage);
+      }
 
       const data = await response.json();
       setSuggestions(data.items || []);
     } catch (error) {
       logger.error({ error }, 'Failed to get AI suggestions');
-      toast.error('Failed to get suggestions. Please try again.');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to get suggestions. Please try again.'
+      );
     } finally {
       setLoadingSuggestions(false);
     }
   };
 
-  const addSuggestedItem = async (item: any) => {
-    setFormData({
-      ...formData,
-      name: item.name,
-      quantity: item.quantity?.toString() || '',
-      unit: item.unit || '',
-      notes: item.notes || '',
-      section: item.section || '',
-      priority: item.priority || 'normal',
-    });
+  // Add a suggested item directly to the user's grocery list
+  const addSuggestedItem = async (item: any, itemIndex: number) => {
+    try {
+      setAddingItemIndex(itemIndex);
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error('You must be logged in to add items');
+        return;
+      }
+
+      if (!householdId) {
+        toast.error('Unable to determine active household');
+        return;
+      }
+
+      // Verify user is actually a member of the household
+      const { data: membership, error: membershipError } = await supabase
+        .from('household_members')
+        .select('household_id, role')
+        .eq('user_id', user.id)
+        .eq('household_id', householdId)
+        .maybeSingle();
+
+      if (membershipError) {
+        logger.error('Error checking household membership:', {
+          membershipError,
+          userId: user.id,
+          householdId
+        });
+        toast.error('Unable to verify household membership');
+        return;
+      }
+
+      if (!membership) {
+        logger.error('User is not a member of the household:', {
+          userId: user.id,
+          householdId
+        });
+        toast.error('You are not a member of this household');
+        return;
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info('Household membership verified:', membership);
+      }
+
+      // Prepare the data to insert
+      const insertData = {
+        household_id: householdId,
+        requested_by: user.id,
+        item_name: item.name.trim(),
+        item_description: item.notes?.trim() || null,
+        quantity: item.quantity ?? 1,
+        unit: item.unit || null,
+        section: normaliseCategory((item.section || item.category || '').trim()),
+        priority: item.priority === 'urgent' ? 'urgent' : 'normal',
+        status: 'approved',
+        is_manual: false,
+      };
+
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info('Adding suggested item:', {
+          item,
+          householdId,
+          userId: user.id,
+          insertData
+        });
+      }
+
+      const { data: insertedData, error } = await supabase
+        .from('food_requests')
+        .insert([insertData]);
+
+      if (error && (error.code || error.message || error.details || error.hint)) {
+        logger.error('Database insert error:', {
+          error,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          errorCode: error.code,
+          insertData,
+          user: { id: user.id, email: user.email },
+          householdId
+        });
+        throw error;
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info('Successfully inserted item');
+      }
+
+      toast.success(`${item.name} added to your list`);
+      // Refresh the parent page list
+      onItemAdded();
+    } catch (error: any) {
+      logger.error('Failed to add suggested item:', {
+        error,
+        errorMessage: error?.message,
+        errorDetails: error?.details,
+        errorHint: error?.hint,
+        errorCode: error?.code,
+        item,
+        householdId
+      });
+      
+      let errorMessage = 'Unknown error';
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.code) {
+        errorMessage = `Database error (${error.code})`;
+      } else if (error?.hint) {
+        errorMessage = error.hint;
+      }
+      
+      toast.error(`Failed to add item: ${errorMessage}`);
+    } finally {
+      setAddingItemIndex(null);
+    }
+  };
+
+  // Normalise category to one of STORE_SECTIONS (case-insensitive match / keywords)
+  const normaliseCategory = (rawCat: string): string => {
+    const cat = rawCat.toLowerCase();
+    if (cat.includes('produce') || cat.includes('fruit') || cat.includes('vegetable')) return 'Produce';
+    if (cat.includes('meat')) return 'Meat';
+    if (cat.includes('seafood') || cat.includes('fish') || cat.includes('shrimp')) return 'Seafood';
+    if (cat.includes('dairy') || cat.includes('egg')) return 'Dairy & Eggs';
+    if (cat.includes('bakery') || cat.includes('bread')) return 'Bakery';
+    if (cat.includes('pantry') || cat.includes('canned') || cat.includes('dry')) return 'Pantry';
+    if (cat.includes('frozen')) return 'Frozen';
+    if (cat.includes('beverage') || cat.includes('drink')) return 'Beverages';
+    if (cat.includes('household')) return 'Household';
+    return 'Other';
   };
 
   return (
@@ -332,25 +475,7 @@ export function AddItemDialog({
               </Select>
             </div>
 
-            {households.length > 1 && (
-              <div className="space-y-2">
-                <Label htmlFor="household">Household *</Label>
-                <Select
-                  value={formData.household_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, household_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a household" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {households.map((household) => (
-                      <SelectItem key={household.id} value={household.id.toString()}>
-                        {household.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* Household selection removed – now inferred from active session */}
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
@@ -431,9 +556,10 @@ export function AddItemDialog({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => addSuggestedItem(item)}
+                        onClick={() => addSuggestedItem(item, index)}
+                        disabled={addingItemIndex === index}
                       >
-                        Select
+                        {addingItemIndex === index ? 'Adding...' : 'Add to List'}
                       </Button>
                     </div>
                   ))}

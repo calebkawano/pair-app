@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface GroceryItem {
-  id: number;
+  id: string;
   name: string;
   category: string;
   item_name: string;
@@ -60,8 +60,8 @@ const STORE_SECTIONS = [
 export default function GroceryListPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingItems, setEditingItems] = useState<Set<number>>(new Set());
-  const [editingData, setEditingData] = useState<Record<number, Partial<GroceryItem>>>({});
+  const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
+  const [editingData, setEditingData] = useState<Record<string, Partial<GroceryItem>>>({});
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [householdColors, setHouseholdColors] = useState<Record<string, string>>({});
   const { user } = useUser();
@@ -150,7 +150,7 @@ export default function GroceryListPage() {
             const nutritionalHighlights = Array.isArray(suggestion.nutritionalHighlights) ? suggestion.nutritionalHighlights : (suggestion.nutritional_highlights || []);
 
             return {
-              id: Date.now() + index, // Generate unique IDs
+              id: crypto.randomUUID(), // Generate unique UUID IDs
               name: 'AI Suggested',
               category: category,
               item_name: name,
@@ -233,7 +233,7 @@ export default function GroceryListPage() {
     }
   };
 
-  const toggleItemPurchased = async (itemId: number) => {
+  const toggleItemPurchased = async (itemId: string) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
@@ -271,7 +271,7 @@ export default function GroceryListPage() {
     }
   };
 
-  const handleItemPreference = async (itemId: number, itemName: string, section: string | null, preferenceType: 'accept' | 'reject') => {
+  const handleItemPreference = async (itemId: string, itemName: string, section: string | null, preferenceType: 'accept' | 'reject') => {
     try {
       if (!user?.id) {
         toast.error('Please sign in to update preferences');
@@ -338,7 +338,7 @@ export default function GroceryListPage() {
     }
   };
 
-  const startEditing = (itemId: number) => {
+  const startEditing = (itemId: string) => {
     const item = items.find(i => i.id === itemId);
     if (item) {
       setEditingItems(prev => new Set(prev).add(itemId));
@@ -356,7 +356,7 @@ export default function GroceryListPage() {
     }
   };
 
-  const cancelEditing = (itemId: number) => {
+  const cancelEditing = (itemId: string) => {
     setEditingItems(prev => {
       const newSet = new Set(prev);
       newSet.delete(itemId);
@@ -369,7 +369,7 @@ export default function GroceryListPage() {
     });
   };
 
-  const saveEdit = async (itemId: number) => {
+  const saveEdit = async (itemId: string) => {
     try {
       const editData = editingData[itemId];
       if (!editData) return;
@@ -406,7 +406,7 @@ export default function GroceryListPage() {
     }
   };
 
-  const deleteItem = async (itemId: number) => {
+  const deleteItem = async (itemId: string) => {
     try {
       // Delete from database
       const { error } = await supabase
@@ -456,7 +456,7 @@ export default function GroceryListPage() {
     }
   };
 
-  const updateEditingData = (itemId: number, field: string, value: any) => {
+  const updateEditingData = (itemId: string, field: string, value: any) => {
     setEditingData(prev => ({
       ...prev,
       [itemId]: {

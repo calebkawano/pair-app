@@ -1,15 +1,15 @@
 import { logger } from "@/lib/logger";
-import { createClient } from "@/lib/supabase/client";
+import { useActiveHousehold, useSupabase } from "@/lib/use-supabase";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Checkbox } from "@/ui/checkbox";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/ui/dialog";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -43,80 +43,21 @@ export function DietarySuggestionsDialog({
 }: DietarySuggestionsDialogProps) {
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [personalHouseholdId, setPersonalHouseholdId] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useSupabase();
+  const householdId = useActiveHousehold();
 
+  // Debug logging for household ID resolution
   useEffect(() => {
-    getPersonalHousehold();
-  }, []);
+    if (process.env.NODE_ENV !== 'production') {
+      logger.info({ householdId, isOpen }, 'DietarySuggestionsDialog household state');
+    }
+  }, [householdId, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
       setSelectedItems(new Set());
     }
   }, [isOpen, suggestions]);
-
-  const getPersonalHousehold = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('You must be logged in');
-        return;
-      }
-
-      // 1. Try household_members first
-      const { data: memberRow, error: memberErr } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .single();
-
-      if (memberRow?.household_id) {
-        if (process.env.NODE_ENV !== 'production') {
-          logger.info({ householdId: memberRow.household_id }, 'Found household via membership');
-        }
-        setPersonalHouseholdId(memberRow.household_id as string);
-      } else {
-        if (memberErr && memberErr.code !== 'PGRST116') {
-          logger.error({ error: memberErr }, 'Failed to query household members');
-        }
-        // 2. Fallback: try personal household by created_by
-        const { data: personalHousehold, error: personalError } = await supabase
-          .from('households')
-          .select('id')
-          .eq('created_by', user.id)
-          .eq('is_personal', true)
-          .single();
-
-        if (personalHousehold?.id) {
-          if (process.env.NODE_ENV !== 'production') {
-            logger.info({ householdId: personalHousehold.id }, 'Using personal household');
-          }
-          setPersonalHouseholdId(personalHousehold.id);
-        } else {
-          logger.warn({ userId: user.id }, 'No household found for user');
-          toast.error('No household found. Please join or create one.');
-        }
-      }
-
-      // Save dietary preferences (update all membership rows)
-      if (dietaryPreferences) {
-        const { error: prefsError } = await supabase
-          .from('household_members')
-          .update({ dietary_preferences: dietaryPreferences })
-          .eq('user_id', user.id);
-
-        if (prefsError) {
-          logger.error({ error: prefsError }, 'Failed to save dietary preferences');
-          toast.error('Failed to save dietary preferences');
-        }
-      }
-    } catch (error: any) {
-      logger.error({ error }, 'Failed to get personal household');
-      toast.error(error.message || 'Failed to find your household');
-    }
-  };
 
   const toggleItem = (index: number) => {
     setSelectedItems(prev => {
@@ -131,8 +72,8 @@ export function DietarySuggestionsDialog({
   };
 
   const handleAddToList = async () => {
-    if (!personalHouseholdId) {
-      toast.error('Unable to find your personal household');
+    if (!householdId) {
+      toast.error('Unable to determine active household. Please try refreshing the page or check your household membership.');
       return;
     }
 
@@ -165,7 +106,7 @@ export function DietarySuggestionsDialog({
       };
 
       // Get selected suggestions
-      const householdIdValue = personalHouseholdId; // food_requests expects UUID
+      const householdIdValue = householdId; // food_requests expects UUID
 
       const itemsToAdd = Array.from(selectedItems).map(index => {
         const suggestion = suggestions[index];
@@ -264,14 +205,19 @@ export function DietarySuggestionsDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
+          {householdId === null && (
+            <div className="text-sm text-muted-foreground mr-4">
+              Unable to find your household. Please check your membership status.
+            </div>
+          )}
           <Button 
             onClick={handleAddToList} 
-            disabled={isSubmitting || selectedItems.size === 0 || !personalHouseholdId}
+            disabled={isSubmitting || selectedItems.size === 0 || householdId === null}
           >
             {isSubmitting
               ? 'Adding...'
-              : !personalHouseholdId
-                ? 'Loading...'
+              : householdId === null
+                ? 'No Household Found'
                 : `Add ${selectedItems.size} Item${selectedItems.size === 1 ? '' : 's'} to List`}
           </Button>
         </DialogFooter>

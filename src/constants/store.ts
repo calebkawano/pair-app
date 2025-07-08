@@ -1,6 +1,7 @@
 export const STORE_SECTIONS = [
   'Produce',
-  'Meat & Seafood',
+  'Meat',
+  'Seafood',
   'Dairy & Eggs',
   'Bakery',
   'Pantry',
