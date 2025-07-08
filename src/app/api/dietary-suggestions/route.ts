@@ -1,27 +1,56 @@
+import { callChat, rateLimiter } from '@/lib/ai';
+import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/middleware';
 import { NextResponse } from 'next/server';
-import { OpenAI } from 'openai';
+import { z } from 'zod';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+const dietaryPreferencesSchema = z.object({
+  dietaryGoal: z.string().min(1, 'Dietary goal is required'),
+  favoriteFood: z.string().min(1, 'Favorite food is required'),
+  cookingTime: z.string().min(1, 'Cooking time is required'),
+  servingCount: z.string().min(1, 'Serving count is required'),
 });
 
-interface DietaryPreferences {
-  dietaryGoal: string;
-  favoriteFood: string;
-  cookingTime: string;
-  servingCount: string;
-}
+const requestBodySchema = z.object({
+  preferences: dietaryPreferencesSchema,
+});
 
 export async function POST(req: Request) {
+  const requestId = req.headers.get('x-request-id') || 'unknown';
+  const requestLogger = logger.child({ requestId, route: 'dietary-suggestions' });
+  
   try {
     const supabase = await createClient();
-    const { preferences } = await req.json() as { preferences: DietaryPreferences };
+    const userId = requireUser(req);
+    
+    requestLogger.info({ userId }, 'Processing dietary suggestions request');
+
+    // Enforce per-user rate limit (30 req/hr)
+    if (!rateLimiter(userId, 'dietary-suggestions')) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded' },
+        { status: 429 }
+      );
+    }
+
+    const body = await req.json();
+    const validationResult = requestBodySchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: validationResult.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const { preferences } = validationResult.data;
 
     // Get user's past dietary preferences
     const { data: userPreferences } = await supabase
       .from('item_preferences')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -73,34 +102,30 @@ Format the response as a JSON array of objects with these exact fields:
   ]
 }`;
 
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are a nutritionist and culinary expert that helps users choose foods that align with their dietary goals provided and cooking preferences also provided. Focus on nutritional value, meal compatibility, and dietary alignment. Always format responses as valid JSON arrays with the exact structure specified."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      model: "gpt-3.5-turbo",
-      response_format: { type: "json_object" },
-      temperature: 0.9,
+    const responseSchema = z.object({
+      items: z.array(z.object({
+        name: z.string(),
+        category: z.string(),
+        quantity: z.number(),
+        unit: z.string(),
+        priceRange: z.string(),
+        cookingUses: z.array(z.string()),
+        storageTips: z.string(),
+        nutritionalHighlights: z.array(z.string())
+      }))
     });
 
-    let suggestions;
-    try {
-      suggestions = JSON.parse(completion.choices[0].message.content || '{"items": []}');
-    } catch (error) {
-      console.error('Error parsing OpenAI response:', error);
-      suggestions = { items: [] };
-    }
+    const suggestions = await callChat(
+      'gpt-3.5-turbo',
+      'You are a nutritionist and culinary expert that helps users choose foods that align with their dietary goals provided and cooking preferences also provided. Focus on nutritional value, meal compatibility, and dietary alignment. Always format responses as valid JSON arrays with the exact structure specified.',
+      prompt,
+      responseSchema
+    );
 
+    requestLogger.info({ userId, itemCount: suggestions.items?.length }, 'Successfully generated dietary suggestions');
     return NextResponse.json(suggestions);
   } catch (error) {
-    console.error('Error generating dietary suggestions:', error);
+    requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error generating dietary suggestions');
     return NextResponse.json(
       { error: 'Failed to generate dietary suggestions' },
       { status: 500 }

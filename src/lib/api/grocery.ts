@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { GroceryItem, UserPreferences } from '@/types/grocery';
 
 export class GroceryApiError extends Error {
@@ -36,7 +37,7 @@ export async function getGrocerySuggestions(preferences: UserPreferences): Promi
     if (error instanceof GroceryApiError) {
       throw error;
     }
-    console.error('Error getting grocery suggestions:', error);
+    logger.error('Error getting grocery suggestions:', error);
     throw new GroceryApiError(
       error instanceof Error ? error.message : 'Failed to get grocery suggestions'
     );

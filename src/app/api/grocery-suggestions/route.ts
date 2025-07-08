@@ -1,12 +1,9 @@
+import { callChat, rateLimiter } from '@/lib/ai';
+import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
-import { GroceryItem } from '@/types/grocery';
+import { requireUser } from '@/middleware';
 import { NextResponse } from 'next/server';
-import { OpenAI } from 'openai';
 import { z } from 'zod';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
 
 // Validation schema for user preferences
 const userPreferencesSchema = z.object({
@@ -21,30 +18,48 @@ const userPreferencesSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const requestId = req.headers.get('x-request-id') || 'unknown';
+  const requestLogger = logger.child({ requestId, route: 'grocery-suggestions' });
+  
   try {
     const supabase = await createClient();
+    const userId = requireUser(req);
+    
+    requestLogger.info({ userId }, 'Processing grocery suggestions request');
+
+    if (!rateLimiter(userId, 'grocery-suggestions')) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
+    const requestBodySchema = z.object({
+      preferences: userPreferencesSchema,
+    });
 
     // Validate request body
-    const validationResult = userPreferencesSchema.safeParse(body.preferences);
+    const validationResult = requestBodySchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid preferences', details: validationResult.error.errors },
+        { error: 'Invalid request body', details: validationResult.error.errors },
         { status: 400 }
       );
     }
 
-    const preferences = validationResult.data;
+    const { preferences } = validationResult.data;
 
     // Get user's past preferences
     const { data: userPreferences, error: preferencesError } = await supabase
       .from('item_preferences')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(50);
 
     if (preferencesError) {
-      console.error('Error fetching user preferences:', preferencesError);
+      requestLogger.error({ error: preferencesError, userId }, 'Error fetching user preferences');
       return NextResponse.json(
         { error: 'Failed to fetch user preferences' },
         { status: 500 }
@@ -96,37 +111,30 @@ Format the response as a JSON array of objects with these exact fields:
   ]
 }`;
 
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are a smart shopping assistant that helps users create personalized grocery lists. You consider dietary preferences, budget constraints, cooking habits, and past preferences to suggest items. Always format responses as valid JSON arrays with the exact structure specified in the prompt."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      model: "gpt-3.5-turbo",
-      response_format: { type: "json_object" },
-      temperature: 0.9,
+    const responseSchema = z.object({
+      items: z.array(z.object({
+        name: z.string(),
+        category: z.string(),
+        quantity: z.number(),
+        unit: z.string(),
+        priceRange: z.string(),
+        cookingUses: z.array(z.string()),
+        storageTips: z.string(),
+        nutritionalHighlights: z.array(z.string())
+      }))
     });
 
-    let suggestions: { items: GroceryItem[] };
-    try {
-      suggestions = JSON.parse(completion.choices[0].message.content || '{"items": []}');
-    } catch (error) {
-      console.error('Error parsing OpenAI response:', error);
-      return NextResponse.json(
-        { error: 'Failed to parse AI suggestions' },
-        { status: 500 }
-      );
-    }
+    const suggestions = await callChat(
+      'gpt-3.5-turbo',
+      'You are a smart shopping assistant that helps users create personalized grocery lists. You consider dietary preferences, budget constraints, cooking habits, and past preferences to suggest items. Always format responses as valid JSON arrays with the exact structure specified in the prompt.',
+      prompt,
+      responseSchema
+    );
 
+    requestLogger.info({ userId, itemCount: suggestions.items?.length }, 'Successfully generated grocery suggestions');
     return NextResponse.json(suggestions);
   } catch (error) {
-    console.error('Error generating shopping list:', error);
+    requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error generating shopping list');
     return NextResponse.json(
       { error: 'Failed to generate shopping list', details: error instanceof Error ? error.message : undefined },
       { status: 500 }

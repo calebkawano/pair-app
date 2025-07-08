@@ -1,7 +1,8 @@
-import { createClient } from './client';
+import { logger } from '@/lib/logger';
+import { createClient } from './server';
 
 export async function ensureDatabaseSetup() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   try {
     // Check if food_requests table exists and has the required columns
@@ -12,30 +13,30 @@ export async function ensureDatabaseSetup() {
 
     if (error) {
       if (error.message?.includes('relation "food_requests" does not exist')) {
-        console.log('Food requests table does not exist, needs to be created');
+        logger.info('Food requests table does not exist, needs to be created');
         return { needsSetup: true, error: 'TABLE_MISSING' };
       } else {
-        console.log('Database access error:', error);
+        logger.info('Database access error:', error);
         return { needsSetup: true, error: error.message };
       }
     }
 
-    console.log('Database tables appear to be set up correctly');
+    logger.info('Database tables appear to be set up correctly');
     return { needsSetup: false, error: null };
   } catch (error) {
-    console.error('Error checking database setup:', error);
+    logger.error('Error checking database setup:', error);
     return { needsSetup: true, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
 export async function createFoodRequestsTable() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   try {
     // This would need to be run with admin privileges
     // For now, we'll just log what needs to be done
-    console.log('To set up the database, run the following SQL in your Supabase dashboard:');
-    console.log(`
+    logger.info('To set up the database, run the following SQL in your Supabase dashboard:');
+    logger.info(`
 -- Fix RLS policies that are blocking access
 -- Based on debug results: user exists, is member of household, but policies block access
 
@@ -171,7 +172,7 @@ CREATE POLICY "food_requests_delete" ON food_requests
     
     return { success: false, message: 'RLS Policy fix required - check console for SQL' };
   } catch (error) {
-    console.error('Error in createFoodRequestsTable:', error);
+    logger.error('Error in createFoodRequestsTable:', error);
     return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
   }
 } 

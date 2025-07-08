@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { PriceServiceError } from '@/lib/pricing/price-service';
 import { SupabaseError } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
@@ -10,7 +11,7 @@ export interface ApiError {
 }
 
 export function handleApiError(error: unknown): NextResponse<ApiError> {
-  console.error('API Error:', error);
+  logger.error('API Error:', error);
 
   // Handle known error types
   if (error instanceof SupabaseError) {

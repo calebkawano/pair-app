@@ -1,36 +1,23 @@
 "use client";
 
 import { FlexInput, FlexValue } from "@/components/FlexInput";
+import {
+  type ShoppingFormData,
+  type ShoppingRecommendations,
+  shoppingRecommendationsSchema
+} from '@/dto/shoppingSettings.schema';
 import { getShoppingSuggestions } from '@/lib/api/shopping';
+import { saveShoppingPreferences } from '@/lib/client/saveShoppingPreferences';
+import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/ui/badge';
 import { Button } from '@/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card';
+import AES from 'crypto-js/aes';
+import encUtf8 from 'crypto-js/enc-utf8';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-
-interface ShoppingFormData {
-  budget: FlexValue;
-  shoppingFrequency: FlexValue;
-  favoriteStores: FlexValue;
-  avoidStores: FlexValue;
-}
-
-interface ShoppingRecommendations {
-  budgetBreakdown: {
-    category: string;
-    suggestedAmount: number;
-    percentage: number;
-  }[];
-  shoppingTips: string[];
-  storeRecommendations: {
-    store: string;
-    reason: string;
-    categories: string[];
-  }[];
-  schedulingAdvice: string;
-}
 
 const BUDGET_OPTIONS = [
   { label: "$200", value: "200" },
@@ -60,6 +47,8 @@ export default function ShoppingSettingsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<ShoppingRecommendations | null>(null);
+  const [previousRecommendations, setPreviousRecommendations] = useState<ShoppingRecommendations | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ShoppingFormData>({
     budget: { type: "dropdown", value: "" },
     shoppingFrequency: { type: "dropdown", value: "" },
@@ -70,40 +59,138 @@ export default function ShoppingSettingsPage() {
   const handleFlexChange = (field: keyof ShoppingFormData, v: FlexValue) =>
     setFormData((prev) => ({ ...prev, [field]: v }));
 
+  // Initialize user and load saved preferences
+  useEffect(() => {
+    const initializeUser = async () => {
+      const { data: { user } } = await createClient().auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        loadSavedPreferences(user.id);
+      }
+    };
+    initializeUser();
+  }, []);
+
+  const getStorageKey = (userId: string) => 
+    `${process.env.NEXT_PUBLIC_APP_SLUG}:${userId}:shoppingSettings`;
+
+  const encryptData = (data: string) => {
+    const key = process.env.NEXT_PUBLIC_STORAGE_KEY;
+    if (!key) {
+      logger.warn('Storage encryption key not configured');
+      return data;
+    }
+    return AES.encrypt(data, key).toString();
+  };
+
+  const decryptData = (encryptedData: string) => {
+    const key = process.env.NEXT_PUBLIC_STORAGE_KEY;
+    if (!key) {
+      logger.warn('Storage encryption key not configured');
+      return encryptedData;
+    }
+    try {
+      const bytes = AES.decrypt(encryptedData, key);
+      return bytes.toString(encUtf8);
+    } catch (error) {
+      logger.error('Failed to decrypt storage data:', error);
+      return null;
+    }
+  };
+
+  const loadSavedPreferences = (userId: string) => {
+    try {
+      const storageKey = getStorageKey(userId);
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData) {
+        const decrypted = decryptData(savedData);
+        if (decrypted) {
+          const parsed = JSON.parse(decrypted);
+          setFormData({
+            budget: { type: "dropdown", value: parsed.budget || "" },
+            shoppingFrequency: { type: "dropdown", value: parsed.shoppingFrequency || "" },
+            favoriteStores: { type: "text", value: parsed.favoriteStores || "" },
+            avoidStores: { type: "text", value: parsed.avoidStores || "" },
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to load saved preferences:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userId) {
+      toast.error('You must be logged in to save preferences');
+      return;
+    }
+
     setIsLoading(true);
+    // Keep previous recommendations while loading
+    setPreviousRecommendations(recommendations);
 
     try {
-      // Store the settings in localStorage
+      // Store the settings in encrypted localStorage
       const plainForm = {
         budget: formData.budget.value,
         shoppingFrequency: formData.shoppingFrequency.value,
         favoriteStores: formData.favoriteStores.value,
         avoidStores: formData.avoidStores.value,
       };
-      localStorage.setItem('shoppingSettings', JSON.stringify(plainForm));
+      
+      const storageKey = getStorageKey(userId);
+      const encryptedData = encryptData(JSON.stringify(plainForm));
+      localStorage.setItem(storageKey, encryptedData);
       
       // Call the shopping suggestions API
       const suggestions = await getShoppingSuggestions(plainForm);
       
-      setRecommendations(suggestions);
-      
-      // Persist to Supabase (shopping_preferences)
-      const { data: { user } } = await createClient().auth.getUser();
-      if (user) {
-        await (await import('@/lib/supabase/actions')).saveShoppingPreferences(user.id, formData as any);
+      // Validate the suggestions with Zod
+      try {
+        const validatedSuggestions = shoppingRecommendationsSchema.parse(suggestions);
+        setRecommendations(validatedSuggestions);
+        setPreviousRecommendations(null); // Clear previous state
+      } catch (validationError) {
+        logger.error('Invalid shopping recommendations format:', validationError);
+        toast.error('Received invalid data from server. Please try again.');
+        return;
       }
+      
+      // Persist to Supabase using direct import
+      await saveShoppingPreferences(userId, formData);
       
       toast.success('Shopping settings saved successfully!');
       
     } catch (error) {
-      console.error('Error saving shopping settings:', error);
+      logger.error('Error saving shopping settings:', error);
       toast.error('Failed to save shopping settings. Please try again.');
+      // Restore previous recommendations on error
+      if (previousRecommendations) {
+        setRecommendations(previousRecommendations);
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
+  const LoadingSkeleton = () => (
+    <div className="space-y-6">
+      {[1, 2, 3, 4].map((i) => (
+        <Card key={i}>
+          <CardHeader>
+            <div className="h-4 bg-gray-200 rounded animate-pulse w-1/3"></div>
+            <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3"></div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[1, 2, 3].map((j) => (
+              <div key={j} className="h-3 bg-gray-200 rounded animate-pulse"></div>
+            ))}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 
   return (
     <div className="container max-w-4xl mx-auto p-4">
@@ -164,8 +251,10 @@ export default function ShoppingSettingsPage() {
 
           {/* Recommendations Display */}
           <div className="space-y-6">
-            {recommendations ? (
-              <>
+            {isLoading && !recommendations && !previousRecommendations ? (
+              <LoadingSkeleton />
+            ) : (recommendations || previousRecommendations) ? (
+              <div className={isLoading ? 'opacity-50' : ''}>
                 {/* Budget Breakdown */}
                 <Card>
                   <CardHeader>
@@ -175,7 +264,7 @@ export default function ShoppingSettingsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {recommendations.budgetBreakdown.map((item, index) => (
+                    {(recommendations || previousRecommendations)?.budgetBreakdown.map((item, index) => (
                       <div key={index} className="flex justify-between items-center">
                         <span className="font-medium">{item.category}</span>
                         <div className="flex items-center gap-2">
@@ -199,7 +288,7 @@ export default function ShoppingSettingsPage() {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
-                      {recommendations.shoppingTips.map((tip, index) => (
+                      {(recommendations || previousRecommendations)?.shoppingTips.map((tip, index) => (
                         <li key={index} className="text-sm flex items-start gap-2">
                           <span className="text-primary">•</span>
                           {tip}
@@ -218,7 +307,7 @@ export default function ShoppingSettingsPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {recommendations.storeRecommendations.map((store, index) => (
+                    {(recommendations || previousRecommendations)?.storeRecommendations.map((store, index) => (
                       <div key={index} className="border rounded-lg p-3">
                         <h4 className="font-medium">{store.store}</h4>
                         <p className="text-sm text-muted-foreground mb-2">{store.reason}</p>
@@ -240,10 +329,10 @@ export default function ShoppingSettingsPage() {
                     <CardTitle>Scheduling Advice</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm">{recommendations.schedulingAdvice}</p>
+                    <p className="text-sm">{(recommendations || previousRecommendations)?.schedulingAdvice}</p>
                   </CardContent>
                 </Card>
-              </>
+              </div>
             ) : (
               <Card>
                 <CardHeader>

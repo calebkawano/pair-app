@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -22,7 +23,7 @@ export async function generateShoppingRecommendations(prompt: string) {
 
     return completion.choices[0].message.content;
   } catch (error) {
-    console.error('Error generating recommendations:', error);
+    logger.error('Error generating recommendations:', error);
     throw error;
   }
 }
@@ -45,7 +46,7 @@ export async function analyzeShoppingList(items: string[]) {
 
     return completion.choices[0].message.content;
   } catch (error) {
-    console.error('Error analyzing shopping list:', error);
+    logger.error('Error analyzing shopping list:', error);
     throw error;
   }
 } 

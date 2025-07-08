@@ -1,5 +1,6 @@
 'use server'
 
+import { logger } from '@/lib/logger';
 import { FoodRequest, HouseholdMember } from '@/types/database';
 import { createClient, SupabaseError } from './server';
 
@@ -22,7 +23,7 @@ export async function getFoodRequests(userId: string): Promise<FoodRequest[]> {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching food requests:', error)
+    logger.error('Error fetching food requests:', error)
     throw new SupabaseError('Failed to fetch food requests', error.code, error.message)
   }
   
@@ -48,7 +49,7 @@ export async function getHouseholdMembers(userId: string): Promise<HouseholdMemb
     .eq('user_id', userId)
 
   if (error) {
-    console.error('Error fetching household members:', error)
+    logger.error('Error fetching household members:', error)
     throw new SupabaseError('Failed to fetch household members', error.code, error.message)
   }
   
@@ -157,7 +158,7 @@ export async function createAIFoodRequests(
     .select();
 
   if (error) {
-    console.error('Error creating AI food requests:', error);
+    logger.error('Error creating AI food requests:', error);
     throw new SupabaseError('Failed to create AI food requests', error.code, error.message);
   }
 
@@ -178,7 +179,7 @@ export async function getRecentMeals(userId: string) {
     .limit(10)
 
   if (error) {
-    console.error('Error fetching recent meals:', error)
+    logger.error('Error fetching recent meals:', error)
     throw new SupabaseError('Failed to fetch recent meals', error.code, error.message)
   }
   
@@ -205,7 +206,7 @@ export async function createRecentMeal(userId: string, mealData: any) {
     .select()
 
   if (error) {
-    console.error('Error creating recent meal:', error)
+    logger.error('Error creating recent meal:', error)
     throw new SupabaseError('Failed to create recent meal', error.code, error.message)
   }
   
@@ -226,7 +227,7 @@ export async function getShoppingItemCount(userId: string): Promise<number> {
     .eq('user_id', userId);
 
   if (memberError) {
-    console.error('Error fetching household members:', memberError);
+    logger.error('Error fetching household members:', memberError);
     throw new SupabaseError('Failed to fetch household members', memberError.code, memberError.message);
   }
 
@@ -246,7 +247,7 @@ export async function getShoppingItemCount(userId: string): Promise<number> {
     .in('household_id', householdIds);
 
   if (countError) {
-    console.error('Error counting list items:', countError);
+    logger.error('Error counting list items:', countError);
     throw new SupabaseError('Failed to count shopping items', countError.code, countError.message);
   }
 
@@ -270,7 +271,7 @@ export async function softDeleteFoodRequest(requestId: number, userId: string): 
     .eq('requested_by', userId); // Only allow users to delete their own requests
 
   if (error) {
-    console.error('Error soft deleting food request:', error);
+    logger.error('Error soft deleting food request:', error);
     throw new SupabaseError('Failed to delete food request', error.code, error.message);
   }
 }
@@ -287,7 +288,7 @@ export async function saveShoppingPreferences(userId: string, prefs: Record<stri
     .eq('user_id', userId);
 
   if (error) {
-    console.error('Error saving shopping preferences:', error);
+    logger.error('Error saving shopping preferences:', error);
     throw new SupabaseError('Failed to save shopping preferences', error.code, error.message);
   }
 } 

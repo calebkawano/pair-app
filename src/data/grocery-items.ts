@@ -1,4 +1,5 @@
-export interface GroceryItem {
+// Static grocery data with basic structure
+interface BasicGroceryItem {
   id: number;
   name: string;
   category: string;
@@ -8,7 +9,7 @@ export interface GroceryItem {
   tags: string[];
 }
 
-export const groceryItems: GroceryItem[] = [
+export const groceryItems: BasicGroceryItem[] = [
   {
     "id": 1,
     "name": "Broccoli",
@@ -30,42 +31,7 @@ export const groceryItems: GroceryItem[] = [
   // ... rest of the items from your JSON
 ] as const;
 
-export const categories = [
-  "Vegetables",
-  "Fruits",
-  "Proteins",
-  "Carbs",
-  "Oils",
-  "Seasonings",
-  "Legumes",
-  "Dairy"
-] as const;
-
-// Helper function to get items by category
-export function getItemsByCategory(category: string): GroceryItem[] {
-  return groceryItems.filter(item => item.category === category);
-}
-
 // Helper function to get item by id
-export function getItemById(id: number): GroceryItem | undefined {
+export function getItemById(id: number): BasicGroceryItem | undefined {
   return groceryItems.find(item => item.id === id);
-}
-
-// Helper function to search items by name or tags
-export function searchItems(query: string): GroceryItem[] {
-  const lowercaseQuery = query.toLowerCase();
-  return groceryItems.filter(item => 
-    item.name.toLowerCase().includes(lowercaseQuery) ||
-    item.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
-  );
-}
-
-// Helper function to get items in stock
-export function getInStockItems(): GroceryItem[] {
-  return groceryItems.filter(item => item.stock > 0);
-}
-
-// Helper function to get items by price range
-export function getItemsByPriceRange(min: number, max: number): GroceryItem[] {
-  return groceryItems.filter(item => item.price >= min && item.price <= max);
 } 

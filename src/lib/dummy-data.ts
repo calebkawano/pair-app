@@ -1,10 +1,3 @@
-export interface SmartSummary {
-  stores: string[];
-  totalItems: number;
-  estimatedTime: string;
-  estimatedSavings: string;
-}
-
 export interface DietaryTag {
   label: string;
   color: string; // Tailwind color class

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { GroceryItem } from '@/types/grocery';
 
 export class PriceServiceError extends Error {
@@ -72,7 +73,7 @@ export async function getPriceComparison(items: GroceryItem[]): Promise<PriceCom
       });
     } catch (error) {
       errors.push(error instanceof Error ? error : new Error(String(error)));
-      console.error(`Error getting price comparison for ${item.name}:`, error);
+      logger.error(`Error getting price comparison for ${item.name}:`, error);
     }
   }
 

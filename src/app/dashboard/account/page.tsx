@@ -1,38 +1,28 @@
 "use client";
 
 import { EditProfileDialog } from "@/features/account/components/edit-profile-dialog";
+import { logger } from '@/lib/logger';
 import { createClient } from "@/lib/supabase/client";
+import { Profile } from '@/types/database';
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import type { User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 function AccountContent() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<{ full_name?: string | null } | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
-  useEffect(() => {
-    getUser();
-    // Show success toast if redirected from profile edit
-    if (searchParams.get('profileUpdated') === 'true') {
-      toast.success('Profile updated successfully');
-      // Clean up the URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete('profileUpdated');
-      window.history.replaceState({}, '', url);
-    }
-  }, []);
-
-  const getUser = async () => {
+  const getUser = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -48,11 +38,23 @@ function AccountContent() {
         setProfile(profileData);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      logger.error('Error loading user data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase.auth, supabase]);
+
+  useEffect(() => {
+    getUser();
+    // Show success toast if redirected from profile edit
+    if (searchParams.get('profileUpdated') === 'true') {
+      toast.success('Profile updated successfully');
+      // Clean up the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('profileUpdated');
+      window.history.replaceState({}, '', url);
+    }
+  }, [getUser, searchParams]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

@@ -1,4 +1,5 @@
-import { PRIORITY_LEVELS, STORE_SECTIONS, UNITS } from '@/types/grocery';
+import { STORE_SECTIONS } from '@/constants/store';
+import { PRIORITY_LEVELS, UNITS } from '@/types/grocery';
 import { z } from 'zod';
 
 // Base schemas for reuse

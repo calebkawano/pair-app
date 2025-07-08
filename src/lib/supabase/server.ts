@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { Database } from '@/types/database';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies as nextCookies } from 'next/headers';
+import { cookies } from 'next/headers';
 
 export class SupabaseError extends Error {
   constructor(
@@ -15,7 +16,7 @@ export class SupabaseError extends Error {
 
 export async function createClient() {
   try {
-    const cookieStore = await nextCookies();
+    const cookieStore = await cookies();
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       throw new SupabaseError('Supabase URL is not defined');
@@ -37,7 +38,7 @@ export async function createClient() {
             try {
               cookieStore.set({ name, value, ...options });
             } catch (error) {
-              console.error('Error setting cookie:', error);
+              logger.error('Error setting cookie:', error);
               throw new SupabaseError(
                 'Failed to set cookie',
                 'COOKIE_ERROR',
@@ -49,7 +50,7 @@ export async function createClient() {
             try {
               cookieStore.set({ name, value: '', ...options, maxAge: 0 });
             } catch (error) {
-              console.error('Error removing cookie:', error);
+              logger.error('Error removing cookie:', error);
               throw new SupabaseError(
                 'Failed to remove cookie',
                 'COOKIE_ERROR',
@@ -70,7 +71,7 @@ export async function createClient() {
       }
     );
   } catch (error) {
-    console.error('Error creating Supabase client:', error);
+    logger.error('Error creating Supabase client:', error);
     throw new SupabaseError(
       'Failed to create Supabase client',
       'CLIENT_ERROR',

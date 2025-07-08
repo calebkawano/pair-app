@@ -41,19 +41,7 @@ export interface UserPreferences {
   servingCount: string;
 }
 
-export const STORE_SECTIONS = [
-  'Produce',
-  'Meat & Seafood',
-  'Dairy & Eggs',
-  'Bakery',
-  'Pantry',
-  'Frozen',
-  'Beverages',
-  'Household',
-  'Other'
-] as const;
-
-export type StoreSection = typeof STORE_SECTIONS[number];
+export type StoreSection = 'Produce' | 'Meat & Seafood' | 'Dairy & Eggs' | 'Bakery' | 'Pantry' | 'Frozen' | 'Beverages' | 'Household' | 'Other';
 
 export const UNITS = [
   'pcs',

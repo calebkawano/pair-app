@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { GroceryItem, StoreSection } from '@/types/grocery';
 
 export class GroceryStoreError extends Error {
@@ -33,7 +34,7 @@ class GroceryStoreService {
       this.data = await response.json();
       this.isLoaded = true;
     } catch (error) {
-      console.error('Error loading grocery data:', error);
+      logger.error('Error loading grocery data:', error);
       throw new GroceryStoreError(
         'Failed to load grocery data',
         error instanceof Error ? error.message : undefined

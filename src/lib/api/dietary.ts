@@ -1,22 +1,12 @@
-interface DietaryPreferences {
-  dietaryGoal: string;
-  favoriteFood: string;
-  cookingTime: string;
-  servingCount: string;
-}
 
-interface GroceryItem {
-  name: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  priceRange: string;
-  cookingUses: string[];
-  storageTips: string;
-  nutritionalHighlights: string[];
-}
+import { logger } from '@/lib/logger';
+import { 
+  type PlainDietaryPreferences, 
+  type DietarySuggestion,
+  dietarySuggestionsResponseSchema 
+} from '@/dto/dietarySuggestion.schema';
 
-export async function getDietarySuggestions(preferences: DietaryPreferences): Promise<GroceryItem[]> {
+export async function getDietarySuggestions(preferences: PlainDietaryPreferences): Promise<DietarySuggestion[]> {
   try {
     const response = await fetch('/api/dietary-suggestions', {
       method: 'POST',
@@ -31,9 +21,12 @@ export async function getDietarySuggestions(preferences: DietaryPreferences): Pr
     }
 
     const data = await response.json();
-    return data.items;
+    
+    // Validate the response with Zod
+    const validatedData = dietarySuggestionsResponseSchema.parse(data);
+    return validatedData.items;
   } catch (error) {
-    console.error('Error getting dietary suggestions:', error);
+    logger.error('Error getting dietary suggestions:', error);
     throw error;
   }
 } 

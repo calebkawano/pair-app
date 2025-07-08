@@ -1,104 +1,83 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
-// Define public routes that don't require authentication
-const PUBLIC_ROUTES = [
-  '/',
-  '/learn',
-  '/auth/callback',
-  '/login',
-  '/signup'
-];
+/**
+ * Edge middleware that authenticates every request hitting /api/* routes.
+ * If a user session is not found, the request is terminated with 401.
+ * Otherwise we forward the request and inject `x-user-id` so that
+ * downstream route handlers can reliably identify the user **without**
+ * re-querying Supabase.
+ */
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+  // Generate or extract request ID for correlation
+  const requestId = req.headers.get('x-request-id') || crypto.randomUUID();
+  
+  // Create child logger with request context
+  const requestLogger = logger.child({ requestId, path: req.nextUrl.pathname });
 
-  try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            request.cookies.set({
-              name,
-              value,
-              ...options,
-            })
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-            })
-          },
-          remove(name: string, options: CookieOptions) {
-            request.cookies.set({
-              name,
-              value: '',
-              ...options,
-            })
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            })
-            response.cookies.set({
-              name,
-              value: '',
-              ...options,
-            })
-          },
+  // Initialise Supabase client bound to the middleware request/response
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
         },
+        set(name: string, value: string, options: any) {
+          res.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          res.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Reject unauthenticated requests
+  if (!user) {
+    requestLogger.warn('Unauthorized API request attempt');
+    return new NextResponse(
+      JSON.stringify({ error: 'Unauthorized' }),
+      {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
       }
-    )
-
-    const { data: { session }, error } = await supabase.auth.getSession()
-
-    // If there's an error getting the session, allow the request to continue
-    // but log the error for debugging
-    if (error) {
-      console.error('Error getting session in middleware:', error);
-    }
-
-    const pathname = request.nextUrl.pathname;
-    const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-    const isAuthPage = pathname.startsWith('/login') || 
-                      pathname.startsWith('/signup') ||
-                      pathname.startsWith('/auth/callback');
-
-    // If not logged in and trying to access protected routes
-    if (!session && !isPublicRoute) {
-      const redirectUrl = new URL('/login', request.url)
-      redirectUrl.searchParams.set('redirectTo', pathname);
-      return NextResponse.redirect(redirectUrl)
-    }
-
-    // If logged in and trying to access auth pages (except callback)
-    if (session && isAuthPage && !pathname.startsWith('/auth/callback')) {
-      const redirectUrl = new URL('/dashboard', request.url)
-      return NextResponse.redirect(redirectUrl)
-    }
-
-    return response
-  } catch (error) {
-    console.error('Middleware error:', error);
-    // On error, allow the request to continue to avoid breaking the app
-    return response;
+    );
   }
+
+  requestLogger.info({ userId: user.id }, 'Authenticated API request');
+
+  // Propagate the user id to downstream handlers via request headers
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-user-id', user.id);
+  requestHeaders.set('x-request-id', requestId);
+
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
+/**
+ * Limit invocation to API routes only.
+ */
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  matcher: '/api/:path*',
+};
+
+/**
+ * Helper for route handlers to guarantee an authenticated user.
+ * Throws if the header was not injected by middleware (should not happen).
+ */
+export function requireUser(req: Request): string {
+  const userId = req.headers.get('x-user-id');
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  return userId;
 } 

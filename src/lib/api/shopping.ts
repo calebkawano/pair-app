@@ -1,26 +1,12 @@
-interface ShoppingPreferences {
-  budget: string;
-  shoppingFrequency: string;
-  favoriteStores: string;
-  avoidStores: string;
-}
 
-interface ShoppingRecommendations {
-  budgetBreakdown: {
-    category: string;
-    suggestedAmount: number;
-    percentage: number;
-  }[];
-  shoppingTips: string[];
-  storeRecommendations: {
-    store: string;
-    reason: string;
-    categories: string[];
-  }[];
-  schedulingAdvice: string;
-}
+import {
+    type PlainShoppingSettings,
+    type ShoppingRecommendations,
+    shoppingRecommendationsSchema
+} from '@/dto/shoppingSettings.schema';
+import { logger } from '@/lib/logger';
 
-export async function getShoppingSuggestions(preferences: ShoppingPreferences): Promise<ShoppingRecommendations> {
+export async function getShoppingSuggestions(preferences: PlainShoppingSettings): Promise<ShoppingRecommendations> {
   try {
     const response = await fetch('/api/shopping-suggestions', {
       method: 'POST',
@@ -35,9 +21,12 @@ export async function getShoppingSuggestions(preferences: ShoppingPreferences): 
     }
 
     const data = await response.json();
-    return data;
+    
+    // Validate the response with Zod
+    const validatedData = shoppingRecommendationsSchema.parse(data);
+    return validatedData;
   } catch (error) {
-    console.error('Error getting shopping suggestions:', error);
+    logger.error('Error getting shopping suggestions:', error);
     throw error;
   }
 } 
