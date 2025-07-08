@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
@@ -72,11 +73,13 @@ export function DietarySuggestionsDialog({
         .single();
 
       if (memberRow?.household_id) {
-        console.log('Found household via membership:', memberRow.household_id);
+        if (process.env.NODE_ENV !== 'production') {
+          logger.info({ householdId: memberRow.household_id }, 'Found household via membership');
+        }
         setPersonalHouseholdId(memberRow.household_id as string);
       } else {
         if (memberErr && memberErr.code !== 'PGRST116') {
-          console.error('Error querying household_members:', memberErr);
+          logger.error({ error: memberErr }, 'Failed to query household members');
         }
         // 2. Fallback: try personal household by created_by
         const { data: personalHousehold, error: personalError } = await supabase
@@ -87,10 +90,12 @@ export function DietarySuggestionsDialog({
           .single();
 
         if (personalHousehold?.id) {
-          console.log('Using personal household:', personalHousehold.id);
+          if (process.env.NODE_ENV !== 'production') {
+            logger.info({ householdId: personalHousehold.id }, 'Using personal household');
+          }
           setPersonalHouseholdId(personalHousehold.id);
         } else {
-          console.error('No household found for user');
+          logger.warn({ userId: user.id }, 'No household found for user');
           toast.error('No household found. Please join or create one.');
         }
       }
@@ -103,12 +108,12 @@ export function DietarySuggestionsDialog({
           .eq('user_id', user.id);
 
         if (prefsError) {
-          console.error('Error saving dietary preferences:', prefsError);
+          logger.error({ error: prefsError }, 'Failed to save dietary preferences');
           toast.error('Failed to save dietary preferences');
         }
       }
     } catch (error: any) {
-      console.error('Error in getPersonalHousehold:', error);
+      logger.error({ error }, 'Failed to get personal household');
       toast.error(error.message || 'Failed to find your household');
     }
   };
@@ -178,7 +183,9 @@ export function DietarySuggestionsDialog({
         };
       });
 
-      console.log('Adding suggestions as food_requests:', itemsToAdd);
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info({ items: itemsToAdd }, 'Adding suggestions as food requests');
+      }
 
       // Add items to food_requests
       const { error, data } = await supabase
@@ -187,21 +194,26 @@ export function DietarySuggestionsDialog({
         .select();
 
       if (error) {
-        console.error('Supabase insert error:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        });
+        logger.error({
+          error,
+          details: {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          }
+        }, 'Failed to insert food requests');
         throw error;
       }
 
-      console.log('Insert response:', data);
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info({ data }, 'Successfully inserted food requests');
+      }
 
       toast.success(`${selectedItems.size} items added to your grocery list`);
       onClose();
     } catch (error) {
-      console.error('Error adding items:', error);
+      logger.error({ error }, 'Failed to add items to grocery list');
       toast.error('Failed to add items to your list');
     } finally {
       setIsSubmitting(false);

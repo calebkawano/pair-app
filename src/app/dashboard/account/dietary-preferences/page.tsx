@@ -4,7 +4,8 @@ import { FlexInput, FlexValue } from "@/components/FlexInput";
 import {
   type DietaryPreferences,
   type DietarySuggestion,
-  dietaryPreferencesSchema
+  dietaryPreferencesSchema,
+  plainDietaryPreferencesSchema
 } from '@/dto/dietarySuggestion.schema';
 import { DietarySuggestionsDialog } from '@/features/grocery/components/dietary-suggestions-dialog';
 import { getDietarySuggestions } from '@/lib/api/dietary';
@@ -111,11 +112,36 @@ export default function DietaryPreferencesPage() {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (memberRow?.dietary_preferences) {
-        try {
-          const validatedPreferences = dietaryPreferencesSchema.parse(memberRow.dietary_preferences);
-          setFormData(validatedPreferences);
-        } catch (validationError) {
-          logger.error('Invalid dietary preferences format:', validationError);
+        // Attempt modern schema first
+        const modernParse = dietaryPreferencesSchema.safeParse(memberRow.dietary_preferences);
+        if (modernParse.success) {
+          setFormData(modernParse.data);
+        } else {
+          // Fallback: try legacy plain schema and transform
+          const legacyParse = plainDietaryPreferencesSchema.safeParse(memberRow.dietary_preferences);
+          if (legacyParse.success) {
+            const legacy = legacyParse.data;
+            const upgraded: DietaryPreferences = {
+              dietaryGoal: { type: 'text', value: legacy.dietaryGoal },
+              favoriteFood: { type: 'text', value: legacy.favoriteFood },
+              cookingTime: { type: 'text', value: legacy.cookingTime },
+              servingCount: { type: 'text', value: legacy.servingCount },
+            };
+            setFormData(upgraded);
+            // Optionally persist upgraded format back
+            try {
+              await supabase
+                .from('household_members')
+                .update({ dietary_preferences: upgraded })
+                .eq('user_id', user.id);
+            } catch (persistErr) {
+              logger.warn('Failed to upgrade stored dietary preferences', persistErr);
+            }
+          } else {
+            logger.error('Invalid dietary preferences format – unable to parse with either schema', {
+              issues: modernParse.error.issues,
+            });
+          }
         }
       }
     } catch (error) {

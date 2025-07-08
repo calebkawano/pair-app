@@ -1,24 +1,25 @@
 'use client';
 
 import { PRIORITY_LEVELS, STORE_SECTIONS } from '@/constants/store';
+import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/ui/dialog";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Textarea } from "@/ui/textarea";
@@ -80,11 +81,13 @@ export function AddItemDialog({
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No user found');
+        logger.warn('Attempted to load households without authenticated user');
         return;
       }
 
-      console.log('Loading households for user:', user.id);
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info({ userId: user.id }, 'Loading households for user');
+      }
       
       const { data: memberData, error: memberError } = await supabase
         .from('household_members')
@@ -92,12 +95,14 @@ export function AddItemDialog({
         .eq('user_id', user.id);
 
       if (memberError) {
-        console.error('Error fetching household members:', memberError);
+        logger.error({ error: memberError }, 'Failed to fetch household members');
         toast.error(`Failed to load households: ${memberError.message}`);
         return;
       }
 
-      console.log('Household member data:', memberData);
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info({ memberData }, 'Retrieved household member data');
+      }
 
       if (!memberData || memberData.length === 0) {
         toast.error('You are not a member of any households yet');
@@ -113,7 +118,9 @@ export function AddItemDialog({
           return acc;
         }, []);
 
-      console.log('Unique households:', uniqueHouseholds);
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info({ households: uniqueHouseholds }, 'Filtered unique households');
+      }
       
       setHouseholds(uniqueHouseholds);
       
@@ -122,7 +129,7 @@ export function AddItemDialog({
         setFormData(prev => ({ ...prev, household_id: uniqueHouseholds[0].id.toString() }));
       }
     } catch (error) {
-      console.error('Error in loadHouseholds:', error);
+      logger.error({ error }, 'Failed to load households');
       toast.error('Failed to load households. Please try again.');
     }
   };
@@ -142,10 +149,12 @@ export function AddItemDialog({
         return;
       }
 
-      console.log('Adding item with data:', {
-        ...formData,
-        household_id: parseInt(formData.household_id)
-      });
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info({ 
+          ...formData,
+          household_id: parseInt(formData.household_id)
+        }, 'Adding new item to grocery list');
+      }
 
       // Create a food request with manual flag
       const { data, error } = await supabase
@@ -168,11 +177,14 @@ export function AddItemDialog({
         .single();
 
       if (error) {
-        console.error('Error details:', error);
+        logger.error({ error }, 'Failed to insert food request');
         throw error;
       }
 
-      console.log('Successfully added item:', data);
+      if (process.env.NODE_ENV !== 'production') {
+        logger.info({ data }, 'Successfully added item to grocery list');
+      }
+
       toast.success('Item added to grocery list');
       onItemAdded();
       onClose();
@@ -186,7 +198,7 @@ export function AddItemDialog({
         household_id: formData.household_id, // Keep the last selected household
       });
     } catch (error: any) {
-      console.error('Error adding item:', error);
+      logger.error({ error }, 'Failed to add item to grocery list');
       toast.error(`Failed to add item: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
@@ -207,7 +219,7 @@ export function AddItemDialog({
       const data = await response.json();
       setSuggestions(data.items || []);
     } catch (error) {
-      console.error('Error getting suggestions:', error);
+      logger.error({ error }, 'Failed to get AI suggestions');
       toast.error('Failed to get suggestions. Please try again.');
     } finally {
       setLoadingSuggestions(false);

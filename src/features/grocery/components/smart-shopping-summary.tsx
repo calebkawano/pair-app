@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { getOptimalRoute, optimizeShoppingList } from "@/lib/pricing/price-service";
 import { ShoppingOptimization, SmartShoppingSummaryProps } from "@/types/components";
 import { Card } from "@/ui/card";
@@ -52,7 +53,7 @@ export function SmartShoppingSummary({ items, onOptimizationComplete }: SmartSho
         setOptimization(newOptimization);
         onOptimizationComplete?.(newOptimization);
       } catch (error) {
-        console.error('Error optimizing shopping list:', error);
+        logger.error({ error }, 'Failed to optimize shopping list');
         toast.error('Failed to optimize shopping list. Please try again later.');
         setOptimization(null);
         onOptimizationComplete?.(null);

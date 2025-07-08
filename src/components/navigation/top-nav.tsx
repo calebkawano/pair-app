@@ -1,43 +1,58 @@
 "use client";
 
+import { useDarkMode } from "@/hooks/use-dark-mode";
+import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import { Button } from "@/ui/button";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { Home, Info, Moon, Sun, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export function TopNav() {
-  const [dark, setDark] = useState(false);
+  const [isDark, toggleDark, mounted] = useDarkMode();
+  const [isToggling, setIsToggling] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const pathname = usePathname();
 
   useEffect(() => {
-    // Get initial user
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-    });
+    (async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        logger.warn({ error }, "Failed to fetch Supabase user");
+      }
+      setUser(data.user ?? null);
+    })();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
+    let subscription: ReturnType<typeof supabase.auth.onAuthStateChange>["data"]["subscription"] | undefined;
+    try {
+      ({ data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+        setUser(session?.user ?? null);
+      }));
+    } catch (err) {
+      logger.warn({ error: err }, "Supabase auth listener error");
+    }
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
-  const toggleTheme = () => {
-    setDark((d) => !d);
-    document.documentElement.classList.toggle('dark');
-    document.body.classList.toggle('dark');
+  const handleThemeToggle = () => {
+    if (isToggling) return; // debounce 200 ms
+    toggleDark();
+    setIsToggling(true);
+    setTimeout(() => setIsToggling(false), 200);
   };
 
-  return (
-    <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
+  const isLearn = pathname.startsWith("/learn");
+  const isAccount = pathname.startsWith("/dashboard/account");
+
+  return mounted ? (
+    <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50" suppressHydrationWarning>
       <div className="container h-full flex items-center justify-between">
         <Link href={user ? "/dashboard" : "/"} className="font-semibold text-lg pl-6">
           p<span className="text-primary">AI</span>r
@@ -48,25 +63,49 @@ export function TopNav() {
               {user.email}
             </span>
           )}
-          <Button size="icon" variant="ghost" onClick={toggleTheme} aria-label="toggle theme">
-            {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleThemeToggle}
+            aria-label="toggle theme"
+            disabled={isToggling}
+          >
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
-          {pathname.startsWith('/learn') ? (
-            <Link href={user ? '/dashboard' : '/'}>
-              <Button size="icon" variant="ghost" aria-label="home">
+          {isLearn ? (
+            <Link href={user ? "/dashboard" : "/"}>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="home"
+                aria-current={!isLearn ? "page" : undefined}
+                className={cn(!isLearn && "text-primary")}
+              >
                 <Home className="h-5 w-5" />
               </Button>
             </Link>
           ) : (
             <Link href="/learn">
-              <Button size="icon" variant="ghost" aria-label="learn">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="learn"
+                aria-current={isLearn ? "page" : undefined}
+                className={cn(isLearn && "text-primary")}
+              >
                 <Info className="h-5 w-5" />
               </Button>
             </Link>
           )}
           {user ? (
             <Link href="/dashboard/account">
-              <Button size="icon" variant="ghost" aria-label="account">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="account"
+                aria-current={isAccount ? "page" : undefined}
+                className={cn(isAccount && "text-primary")}
+              >
                 <UserIcon className="h-5 w-5" />
               </Button>
             </Link>
@@ -79,5 +118,5 @@ export function TopNav() {
         </div>
       </div>
     </header>
-  );
+  ) : null;
 } 
