@@ -90,7 +90,7 @@ export default function HouseholdsPage() {
             key={h.id}
             household={h}
             userId={userId}
-            toggle={(id)=>{
+            toggle={() => {
               // simple toggle managed locally inside the component via prop change
               h.isExpanded = !h.isExpanded;
             }}

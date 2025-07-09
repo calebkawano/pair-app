@@ -140,14 +140,14 @@ export default function GroceryListPage() {
         
         if (suggestionsArray.length > 0) {
           // Convert AI suggestions to GroceryItem format
-          const newItems = suggestionsArray.map((suggestion: any, index: number) => {
-            const name = suggestion.name || suggestion.item_name || 'Unknown Item';
-            const category = suggestion.category || suggestion.section || null;
-            const quantity = suggestion.quantity ?? 1;
-            const unit = suggestion.unit || suggestion.units || null;
-            const cookingUses = Array.isArray(suggestion.cookingUses) ? suggestion.cookingUses : (suggestion.cooking_uses || []);
-            const storageTips = suggestion.storageTips || suggestion.storage_tips || '';
-            const nutritionalHighlights = Array.isArray(suggestion.nutritionalHighlights) ? suggestion.nutritionalHighlights : (suggestion.nutritional_highlights || []);
+          const newItems = suggestionsArray.map((suggestion: unknown) => {
+            const name = (suggestion as any).name || (suggestion as any).item_name || 'Unknown Item';
+            const category = (suggestion as any).category || (suggestion as any).section || null;
+            const quantity = (suggestion as any).quantity ?? 1;
+            const unit = (suggestion as any).unit || (suggestion as any).units || null;
+            const cookingUses = Array.isArray((suggestion as any).cookingUses) ? (suggestion as any).cookingUses : ((suggestion as any).cooking_uses || []);
+            const storageTips = (suggestion as any).storageTips || (suggestion as any).storage_tips || '';
+            const nutritionalHighlights = Array.isArray((suggestion as any).nutritionalHighlights) ? (suggestion as any).nutritionalHighlights : ((suggestion as any).nutritional_highlights || []);
 
             return {
               id: crypto.randomUUID(), // Generate unique UUID IDs
@@ -332,9 +332,10 @@ export default function GroceryListPage() {
         console.error('Error saving preference:', prefError);
         // Don't show error to user as the main action succeeded
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error updating item preference:', error);
-      toast.error(`Failed to update preference: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to update preference: ${msg}`);
     }
   };
 
@@ -456,7 +457,7 @@ export default function GroceryListPage() {
     }
   };
 
-  const updateEditingData = (itemId: string, field: string, value: any) => {
+  const updateEditingData = (itemId: string, field: string, value: unknown) => {
     setEditingData(prev => ({
       ...prev,
       [itemId]: {

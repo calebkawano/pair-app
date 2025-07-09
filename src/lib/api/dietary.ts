@@ -1,32 +1,21 @@
 
-import { logger } from '@/lib/logger';
-import { 
-  type PlainDietaryPreferences, 
-  type DietarySuggestion,
-  dietarySuggestionsResponseSchema 
+import {
+  dietarySuggestionsResponseSchema,
+  type DietarySuggestionsResponse,
+  type PlainDietaryPreferences
 } from '@/dto/dietarySuggestion.schema';
+import { fetchJson } from './fetchJson';
+import { apiRoutes } from './routes';
 
-export async function getDietarySuggestions(preferences: PlainDietaryPreferences): Promise<DietarySuggestion[]> {
-  try {
-    const response = await fetch('/api/dietary-suggestions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ preferences }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to get dietary suggestions');
-    }
-
-    const data = await response.json();
-    
-    // Validate the response with Zod
-    const validatedData = dietarySuggestionsResponseSchema.parse(data);
-    return validatedData.items;
-  } catch (error) {
-    logger.error('Error getting dietary suggestions:', error);
-    throw error;
-  }
+export async function postDietaryPreferences(
+  req: PlainDietaryPreferences,
+): Promise<DietarySuggestionsResponse> {
+  return fetchJson<PlainDietaryPreferences, DietarySuggestionsResponse>(
+    apiRoutes.dietarySuggestions,
+    {
+      body: req,
+      schema: dietarySuggestionsResponseSchema,
+      toastError: 'Failed to get dietary suggestions',
+    },
+  );
 } 

@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/ui/logo";
 import { useDarkMode } from "@/hooks/use-dark-mode";
 import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/client";
@@ -54,8 +55,8 @@ export function TopNav() {
   return mounted ? (
     <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50" suppressHydrationWarning>
       <div className="container h-full flex items-center justify-between">
-        <Link href={user ? "/dashboard" : "/"} className="font-semibold text-lg pl-6">
-          p<span className="text-primary">AI</span>r
+        <Link href={user ? "/dashboard" : "/"} className="pl-6">
+          <Logo variant="minimal" size={32} />
         </Link>
         <div className="flex items-center gap-4 pr-6">
           {user && (

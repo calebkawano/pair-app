@@ -1,45 +1,32 @@
-import { logger } from '@/lib/logger';
-import { GroceryItem, UserPreferences } from '@/types/grocery';
+import type { UserPreferences } from '@/types/grocery';
+import { z } from 'zod';
+import { fetchJson } from './fetchJson';
+import { apiRoutes } from './routes';
 
-export class GroceryApiError extends Error {
-  constructor(
-    message: string,
-    public readonly statusCode?: number,
-    public readonly details?: any
-  ) {
-    super(message);
-    this.name = 'GroceryApiError';
-  }
-}
+// Minimal Grocery suggestion schema - refine once backend contract stabilises
+const grocerySuggestionSchema = z.object({
+  name: z.string(),
+  category: z.string().optional(),
+  quantity: z.number().optional(),
+  unit: z.string().nullable().optional(),
+});
 
-export async function getGrocerySuggestions(preferences: UserPreferences): Promise<GroceryItem[]> {
-  try {
-    const response = await fetch('/api/grocery-suggestions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ preferences }),
-    });
+const grocerySuggestionsResponseSchema = z.object({
+  items: z.array(grocerySuggestionSchema),
+});
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new GroceryApiError(
-        errorData.error || 'Failed to get grocery suggestions',
-        response.status,
-        errorData
-      );
-    }
+export type GrocerySuggestion = z.infer<typeof grocerySuggestionSchema>;
+export type GrocerySuggestionsResponse = z.infer<typeof grocerySuggestionsResponseSchema>;
 
-    const data = await response.json();
-    return data.items;
-  } catch (error) {
-    if (error instanceof GroceryApiError) {
-      throw error;
-    }
-    logger.error('Error getting grocery suggestions:', error);
-    throw new GroceryApiError(
-      error instanceof Error ? error.message : 'Failed to get grocery suggestions'
-    );
-  }
+export async function postGrocerySuggestions(
+  req: UserPreferences,
+): Promise<GrocerySuggestionsResponse> {
+  return fetchJson<UserPreferences, GrocerySuggestionsResponse>(
+    apiRoutes.grocerySuggestions,
+    {
+      body: req,
+      schema: grocerySuggestionsResponseSchema,
+      toastError: 'Failed to get grocery suggestions',
+    },
+  );
 } 

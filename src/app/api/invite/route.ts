@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         );
       }
       normalizedPhoneNumber = parsed.format('E.164');
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: 'Failed to parse phone number' },
         { status: 400 }

@@ -5,10 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 
 interface Props {
   members: Household['members'];
-  currentUserId?: string | null;
 }
 
-export function MemberList({ members, currentUserId }: Props) {
+export function MemberList({ members }: Props) {
   return (
     <div className="grid gap-4">
       {members.map((member) => (

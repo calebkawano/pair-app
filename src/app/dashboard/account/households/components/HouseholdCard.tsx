@@ -63,7 +63,7 @@ export function HouseholdCard({ household, userId, toggle, onInvite, onRequestFo
                   <LinkIcon className="w-4 h-4 mr-2" /> Invite Member
                 </Button>
               </div>
-              <MemberList members={household.members} currentUserId={userId} />
+              <MemberList members={household.members} />
             </div>
 
             <div className="space-y-4">

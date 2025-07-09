@@ -9,6 +9,21 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "pAIr - Practical AI Recipes",
   description: "Smart meal planning and grocery shopping assistant powered by AI",
+  icons: {
+    icon: [
+      {
+        url: "/images/logos/pair-logo-full.png",
+        sizes: "32x32",
+        type: "image/png"
+      },
+      {
+        url: "/images/logos/pair-logo-full.png",
+        sizes: "192x192",
+        type: "image/png"
+      }
+    ],
+    apple: "/images/logos/pair-logo-full.png"
+  }
 };
 
 export default function RootLayout({
