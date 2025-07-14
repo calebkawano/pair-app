@@ -4,11 +4,11 @@ import { Meal } from "@/lib/dummy-data";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/ui/dialog";
 import { motion, PanInfo, useMotionValue, useTransform } from "framer-motion";
 import { Check, ChevronDown, Heart, Info, Star, X } from "lucide-react";
@@ -70,7 +70,7 @@ export function SwipeableMealCard({ meal, onSwipeLeft, onSwipeRight, onClose, sh
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onSwipeLeft, onSwipeRight, onClose]);
 
-  const handleDragEnd = (event: any, info: PanInfo) => {
+  const handleDragEnd = (event: PointerEvent, info: PanInfo) => {
     const threshold = 100;
     
     if (info.offset.x > threshold) {
@@ -242,7 +242,7 @@ export function SwipeableMealCard({ meal, onSwipeLeft, onSwipeRight, onClose, sh
         >
           <div className="text-white text-center">
             <Heart className="h-16 w-16 mx-auto mb-2" />
-            <p className="text-xl font-bold">Let's Cook This!</p>
+            <p className="text-xl font-bold">Let&apos;s Cook This!</p>
           </div>
         </motion.div>
 

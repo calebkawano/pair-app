@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger';
 import { GroceryItem } from '@/types/grocery';
 
 export class PriceServiceError extends Error {
-  constructor(message: string, public readonly details?: any) {
+  constructor(message: string, public readonly details?: unknown) {
     super(message);
     this.name = 'PriceServiceError';
   }

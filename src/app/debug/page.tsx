@@ -6,25 +6,46 @@ import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import { useState } from "react";
 
+interface TestResult {
+  test: string;
+  status: 'success' | 'error';
+  data?: unknown;
+  error?: {
+    message: string;
+    details?: string;
+    hint?: string;
+    code?: string;
+    full: string;
+  };
+}
+
+interface DatabaseError {
+  message: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+}
+
 export default function DebugPage() {
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
-  const runTest = async (testName: string, testFn: () => Promise<any>) => {
+  const runTest = async (testName: string, testFn: () => Promise<unknown>) => {
     setLoading(true);
     try {
       const result = await testFn();
       setResults(prev => [...prev, { test: testName, status: 'success', data: result }]);
     } catch (error) {
+      const dbError = error as DatabaseError;
       setResults(prev => [...prev, { 
         test: testName, 
         status: 'error', 
         error: {
           message: error instanceof Error ? error.message : 'Unknown error',
-          details: (error as any)?.details,
-          hint: (error as any)?.hint,
-          code: (error as any)?.code,
+          details: dbError.details,
+          hint: dbError.hint,
+          code: dbError.code,
           full: JSON.stringify(error, null, 2)
         }
       }]);
@@ -83,7 +104,7 @@ export default function DebugPage() {
     
     // Test households access
     try {
-      const { data, error } = await supabase.from('households').select('count(*)', { count: 'exact', head: true });
+      const { error } = await supabase.from('households').select('count(*)', { count: 'exact', head: true });
       tests.push({ table: 'households', accessible: !error, error: error?.message });
     } catch (e) {
       tests.push({ table: 'households', accessible: false, error: (e as Error).message });
@@ -91,7 +112,7 @@ export default function DebugPage() {
 
     // Test food_requests access
     try {
-      const { data, error } = await supabase.from('food_requests').select('count(*)', { count: 'exact', head: true });
+      const { error } = await supabase.from('food_requests').select('count(*)', { count: 'exact', head: true });
       tests.push({ table: 'food_requests', accessible: !error, error: error?.message });
     } catch (e) {
       tests.push({ table: 'food_requests', accessible: false, error: (e as Error).message });

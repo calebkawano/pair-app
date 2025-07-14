@@ -6,7 +6,7 @@ export async function ensureDatabaseSetup() {
   
   try {
     // Check if food_requests table exists and has the required columns
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('food_requests')
       .select('id, priority, section')
       .limit(1);
@@ -30,8 +30,6 @@ export async function ensureDatabaseSetup() {
 }
 
 export async function createFoodRequestsTable() {
-  const supabase = createClient();
-  
   try {
     // This would need to be run with admin privileges
     // For now, we'll just log what needs to be done

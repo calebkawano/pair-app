@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger';
 import { GroceryItem, StoreSection } from '@/types/grocery';
 
 export class GroceryStoreError extends Error {
-  constructor(message: string, public readonly details?: any) {
+  constructor(message: string, public readonly details?: unknown) {
     super(message);
     this.name = 'GroceryStoreError';
   }
@@ -61,7 +61,7 @@ class GroceryStoreService {
     );
   }
 
-  async getItemById(id: number): Promise<GroceryItem | undefined> {
+  async getItemById(id: string): Promise<GroceryItem | undefined> {
     await this.ensureDataLoaded();
     return this.data.find(item => item.id === id);
   }
@@ -85,7 +85,7 @@ class GroceryStoreService {
   }
 
   // Simulate price updates (in a real app, this would come from the store's API)
-  async getUpdatedPrice(itemId: number): Promise<number> {
+  async getUpdatedPrice(itemId: string): Promise<number> {
     await this.ensureDataLoaded();
     const item = await this.getItemById(itemId);
     if (!item) {

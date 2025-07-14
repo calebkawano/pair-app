@@ -11,6 +11,14 @@ import { ChefHat, Dice6, Loader2, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+interface NutritionInfo {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
 interface RecentMeal {
   id: string;
   meal_name: string;
@@ -20,13 +28,30 @@ interface RecentMeal {
   dietary_tags: string[];
   ingredients: string[];
   steps: string[];
-  nutrition: any;
+  nutrition: NutritionInfo | null;
   created_at: string;
   created_from_groceries: boolean;
 }
 
+// Interface for API meal data
+interface ApiMealData {
+  id?: string;
+  meal_name?: string;
+  name?: string;
+  category?: string;
+  cooking_time?: string;
+  cookingTime?: string;
+  rating?: number;
+  dietary_tags?: string[];
+  dietaryTags?: string[];
+  ingredients?: string[];
+  steps?: string[];
+  nutrition?: NutritionInfo;
+  imageUrl?: string;
+}
+
 // Function to convert API meal data to frontend Meal interface
-const convertApiMealToMeal = (apiMeal: any): Meal => {
+const convertApiMealToMeal = (apiMeal: ApiMealData): Meal => {
   return {
     id: apiMeal.id || Math.random().toString(36).substring(7),
     name: apiMeal.meal_name || apiMeal.name || 'Untitled Meal',

@@ -186,7 +186,24 @@ export async function getRecentMeals(userId: string) {
   return data
 }
 
-export async function createRecentMeal(userId: string, mealData: any) {
+interface MealData {
+  meal_name: string;
+  cooking_time?: string;
+  rating?: number;
+  category?: string;
+  dietary_tags?: string[];
+  ingredients?: string[];
+  steps?: string[];
+  nutrition?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber: number;
+  } | null;
+}
+
+export async function createRecentMeal(userId: string, mealData: MealData) {
   if (!userId) {
     throw new SupabaseError('User ID is required');
   }

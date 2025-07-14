@@ -3,7 +3,7 @@ import { FoodRequestList } from '@/features/household/components/food-request-li
 import { Badge } from '@/ui/badge';
 import { Button } from '@/ui/button';
 import { Card } from '@/ui/card';
-import { ChevronDown, ChevronUp, Link as LinkIcon, Palette, PlusCircle, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Link as LinkIcon, PlusCircle, Trash2 } from 'lucide-react';
 import { MemberList } from './MemberList';
 
 // color options reused for picker thumbnail
@@ -18,11 +18,10 @@ interface Props {
   toggle: (id: string) => void;
   onInvite: (h: Household) => void;
   onRequestFood: (id: string) => void;
-  onColor: (h: Household) => void;
   onDelete: (h: Household) => void;
 }
 
-export function HouseholdCard({ household, userId, toggle, onInvite, onRequestFood, onColor, onDelete }: Props) {
+export function HouseholdCard({ household, userId, toggle, onInvite, onRequestFood, onDelete }: Props) {
   const getColor = () => {
     if (household.color) return household.color;
     const hash = household.name.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0);
@@ -40,10 +39,7 @@ export function HouseholdCard({ household, userId, toggle, onInvite, onRequestFo
             <Badge className={`text-white ${getColor()}`}>{household.members.length} {household.members.length === 1 ? 'Member' : 'Members'}</Badge>
           </button>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onColor(household)} title="Change household color">
-              <Palette className="h-4 w-4" />
-            </Button>
-            {!household.is_personal && household.created_by === userId && (
+            {isAdmin && (
               <Button variant="ghost" size="sm" onClick={() => onDelete(household)} className="text-destructive">
                 <Trash2 className="h-4 w-4" />
               </Button>

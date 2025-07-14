@@ -12,7 +12,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 let _browserClient: SupabaseClient<Database> | null = null;
 function getBrowserClient() {
   if (!_browserClient) {
-     
+    // Dynamically import to avoid bundling server code in browser
     const { createBrowserClient } = require("@supabase/ssr");
     _browserClient = createBrowserClient(
       SUPABASE_URL,
@@ -27,9 +27,7 @@ function getBrowserClient() {
 // ------------------------------------------------------------
 function getServerClient() {
   // Dynamically import server-only modules to avoid bundling them in the client build
-   
   const { cookies } = require("next/headers");
-   
   const { createServerClient } = require("@supabase/ssr");
 
   const cookieStore = cookies();
@@ -39,14 +37,14 @@ function getServerClient() {
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value ?? null,
-        set: (name: string, value: string, options: any) => {
+        set: (name: string, value: string, options: Record<string, unknown>) => {
           try {
             cookieStore.set({ name, value, ...options });
           } catch (error) {
             logger.error({ error }, "Supabase cookie set failed");
           }
         },
-        remove: (name: string, options: any) => {
+        remove: (name: string, options: Record<string, unknown>) => {
           try {
             cookieStore.set({ name, value: "", ...options, maxAge: 0 });
           } catch (error) {
@@ -70,12 +68,15 @@ function getServerClient() {
 // ------------------------------------------------------------
 
 export function useSupabase(): SupabaseClient<Database> {
-  // In the browser we memoise a singleton; on the server we create a
-  // per-request instance (hooks are not allowed there).
-  if (typeof window === "undefined") {
-    return getServerClient();
-  }
-  return useMemo(() => getBrowserClient(), []);
+  // Always call useMemo to satisfy Rules of Hooks
+  return useMemo(() => {
+    // In the browser we memoise a singleton; on the server we create a
+    // per-request instance (hooks are not allowed there).
+    if (typeof window === "undefined") {
+      return getServerClient();
+    }
+    return getBrowserClient();
+  }, []);
 }
 
 /**
@@ -89,7 +90,13 @@ export function useActiveHousehold() {
 
   useEffect(() => {
     let mounted = true;
-    let timeoutId: NodeJS.Timeout;
+    const timeoutId: NodeJS.Timeout = setTimeout(() => {
+      if (mounted && isLoading) {
+        logger.warn("useActiveHousehold timeout - setting to null");
+        setHouseholdId(null);
+        setIsLoading(false);
+      }
+    }, 10000); // 10 second timeout
     
     (async () => {
       try {
@@ -138,15 +145,6 @@ export function useActiveHousehold() {
         }
       }
     })();
-    
-    // Timeout fallback to prevent infinite loading
-    timeoutId = setTimeout(() => {
-      if (mounted && isLoading) {
-        logger.warn("useActiveHousehold timeout - setting to null");
-        setHouseholdId(null);
-        setIsLoading(false);
-      }
-    }, 10000); // 10 second timeout
     
     return () => {
       mounted = false;

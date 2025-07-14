@@ -42,7 +42,7 @@ function AccountContent() {
     } finally {
       setLoading(false);
     }
-  }, [supabase.auth, supabase]);
+  }, [supabase]);
 
   useEffect(() => {
     getUser();

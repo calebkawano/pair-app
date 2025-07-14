@@ -41,6 +41,23 @@ interface GroceryItem {
   status: 'pending' | 'approved' | 'declined';
 }
 
+// Type for AI suggestions from localStorage
+interface AISuggestion {
+  name?: string;
+  item_name?: string;
+  category?: string;
+  section?: string;
+  quantity?: number;
+  unit?: string;
+  units?: string;
+  cookingUses?: string[];
+  cooking_uses?: string[];
+  storageTips?: string;
+  storage_tips?: string;
+  nutritionalHighlights?: string[];
+  nutritional_highlights?: string[];
+}
+
 // Available units for dropdown
 const UNITS = [
   'pcs', 'lbs', 'oz', 'kg', 'g', 'cups', 'tbsp', 'tsp', 'bottles', 'cans', 'boxes', 'bags', 'bunches', 'loaves'
@@ -78,11 +95,6 @@ export default function GroceryListPage() {
   // Get unique sections from items
   const sections = ['all', ...new Set(items.filter(item => item.section).map(item => item.section as string))];
 
-  // Create stable dependencies for smart summary that only change when items actually change
-  const itemsStableKey = useMemo(() => {
-    return items.map(item => `${item.id}-${item.is_purchased}-${item.item_name}-${item.quantity}-${item.section}`).join('|');
-  }, [items]);
-
   // Memoize the smart summary items to prevent recalculation on sorting/filtering
   const smartSummaryItems = useMemo(() => {
     const unpurchasedItems = items.filter(item => !item.is_purchased);
@@ -91,7 +103,7 @@ export default function GroceryListPage() {
       name: item.item_name,
       category: item.section || 'Uncategorized'
     }));
-  }, [itemsStableKey]); // Use stable key instead of unpurchasedItems
+  }, [items]);
 
   // Get household color based on saved color or default hash
   const getHouseholdColor = (householdName: string) => {
@@ -141,13 +153,20 @@ export default function GroceryListPage() {
         if (suggestionsArray.length > 0) {
           // Convert AI suggestions to GroceryItem format
           const newItems = suggestionsArray.map((suggestion: unknown) => {
-            const name = (suggestion as any).name || (suggestion as any).item_name || 'Unknown Item';
-            const category = (suggestion as any).category || (suggestion as any).section || null;
-            const quantity = (suggestion as any).quantity ?? 1;
-            const unit = (suggestion as any).unit || (suggestion as any).units || null;
-            const cookingUses = Array.isArray((suggestion as any).cookingUses) ? (suggestion as any).cookingUses : ((suggestion as any).cooking_uses || []);
-            const storageTips = (suggestion as any).storageTips || (suggestion as any).storage_tips || '';
-            const nutritionalHighlights = Array.isArray((suggestion as any).nutritionalHighlights) ? (suggestion as any).nutritionalHighlights : ((suggestion as any).nutritional_highlights || []);
+            // Type guard to ensure we're working with the right shape
+            const aiSuggestion = suggestion as AISuggestion;
+            
+            const name = aiSuggestion.name || aiSuggestion.item_name || 'Unknown Item';
+            const category = aiSuggestion.category || aiSuggestion.section || null;
+            const quantity = aiSuggestion.quantity ?? 1;
+            const unit = aiSuggestion.unit || aiSuggestion.units || null;
+            const cookingUses = Array.isArray(aiSuggestion.cookingUses) 
+              ? aiSuggestion.cookingUses 
+              : (aiSuggestion.cooking_uses || []);
+            const storageTips = aiSuggestion.storageTips || aiSuggestion.storage_tips || '';
+            const nutritionalHighlights = Array.isArray(aiSuggestion.nutritionalHighlights) 
+              ? aiSuggestion.nutritionalHighlights 
+              : (aiSuggestion.nutritional_highlights || []);
 
             return {
               id: crypto.randomUUID(), // Generate unique UUID IDs
@@ -580,7 +599,7 @@ export default function GroceryListPage() {
                 </div>
                 {/* Sort Controls */}
                 <div className="flex items-center gap-2">
-                  <Select value={sortBy} onValueChange={(val: string) => setSortBy(val as any)}>
+                  <Select value={sortBy} onValueChange={(val: string) => setSortBy(val as 'priority' | 'household' | 'quantity' | 'requester' | 'category')}>
                     <SelectTrigger className="w-40">
                       <SelectValue placeholder="Sort by..." />
                     </SelectTrigger>

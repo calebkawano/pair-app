@@ -18,9 +18,9 @@ export interface HouseholdMember {
   household_id: string;
   user_id: string;
   role: 'admin' | 'member';
-  dietary_preferences: Record<string, any>;
+  dietary_preferences: Record<string, unknown>;
   allergies: string[];
-  shopping_preferences: Record<string, any>;
+  shopping_preferences: Record<string, unknown>;
   created_at: string;
 }
 
@@ -43,7 +43,7 @@ export interface FoodRequest {
   purchased_at: string | null;
   created_at: string;
   version: number;
-  version_history: any[];
+  version_history: Record<string, unknown>[];
   deleted_at: string | null;
   deleted_by: string | null;
 }
@@ -64,7 +64,7 @@ export interface ItemMetadata {
   category_id: string | null;
   typical_unit: string | null;
   typical_quantity: number | null;
-  nutritional_info: Record<string, any> | null;
+  nutritional_info: Record<string, unknown> | null;
   storage_tips: string | null;
   created_at: string;
   updated_at: string | null;
@@ -148,7 +148,7 @@ export interface Database {
         Returns: PriceTrends;
       };
       get_active_household: {
-        Args: {};
+        Args: Record<string, never>;
         Returns: string | null;
       };
     };

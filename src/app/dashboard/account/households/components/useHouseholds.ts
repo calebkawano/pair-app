@@ -1,12 +1,21 @@
 import {
-    type Household,
-    membershipDataSchema,
-    supabaseHouseholdRowSchema,
+  type Household,
+  membershipDataSchema,
+  supabaseHouseholdRowSchema,
 } from '@/dto/household.schema';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/client';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+
+// 25 Tailwind background colour classes for households
+const COLOR_OPTIONS: readonly string[] = [
+  'bg-blue-500','bg-green-500','bg-purple-500','bg-orange-500','bg-pink-500',
+  'bg-teal-500','bg-indigo-500','bg-red-500','bg-yellow-500','bg-cyan-500',
+  'bg-lime-500','bg-amber-500','bg-emerald-500','bg-rose-500','bg-violet-500',
+  'bg-fuchsia-500','bg-sky-500','bg-slate-500','bg-gray-500','bg-zinc-500',
+  'bg-neutral-500','bg-stone-500','bg-blue-700','bg-green-700','bg-red-700',
+] as const;
 
 /**
  * Centralised data/logic layer for household management UI.
@@ -43,7 +52,21 @@ export function useHouseholds() {
         return;
       }
 
-      const validatedMemberships = membershipData.map((item) => membershipDataSchema.parse(item));
+      const validatedMemberships = membershipData
+        .map((item) => {
+          try {
+            return membershipDataSchema.parse(item);
+          } catch {
+            return null; // Return null for invalid entries
+          }
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null); // Filter out null entries
+
+      if (!validatedMemberships.length) {
+        setHouseholds([]);
+        return;
+      }
+
       const householdIds = validatedMemberships.map(m => m.household_id);
 
       const { data: householdsData, error: householdsError } = await supabase
@@ -75,7 +98,7 @@ export function useHouseholds() {
         try {
           const h = supabaseHouseholdRowSchema.parse(row);
           return {
-            id: h.id,
+            id: String(h.id),
             name: h.name,
             color: h.color || undefined,
             members: h.household_members?.map(m => ({
@@ -110,9 +133,10 @@ export function useHouseholds() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+      const selectedColor = COLOR_OPTIONS[Math.floor(Math.random() * COLOR_OPTIONS.length)];
       const { data, error } = await supabase
         .from('households')
-        .insert([{ name: name.trim(), created_by: user.id, is_personal: false }])
+        .insert([{ name: name.trim(), created_by: user.id, is_personal: false, color: selectedColor }])
         .select('id')
         .single();
       if (error || !data) throw error;
@@ -149,6 +173,10 @@ export function useHouseholds() {
     }
   }, [supabase]);
 
+  const toggleExpanded = useCallback((id: string) => {
+    setHouseholds(prev => prev.map(h => h.id === id ? { ...h, isExpanded: !h.isExpanded } : h));
+  }, []);
+
   useEffect(() => {
     loadUser();
   }, [loadUser]);
@@ -164,6 +192,7 @@ export function useHouseholds() {
     createHousehold,
     updateHouseholdColor,
     deleteHousehold,
+    toggleExpanded,
     reload: loadHouseholds,
   } as const;
 } 

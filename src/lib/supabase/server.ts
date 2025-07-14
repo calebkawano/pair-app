@@ -7,7 +7,7 @@ export class SupabaseError extends Error {
   constructor(
     message: string,
     public readonly code?: string,
-    public readonly details?: any
+    public readonly details?: unknown
   ) {
     super(message);
     this.name = 'SupabaseError';

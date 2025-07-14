@@ -16,6 +16,14 @@ interface Profile {
   [key: string]: unknown;
 }
 
+interface NutritionInfo {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
 interface RecentMeal {
   id: string;
   meal_name: string;
@@ -25,7 +33,7 @@ interface RecentMeal {
   dietary_tags: string[];
   ingredients: string[];
   steps: string[];
-  nutrition: any;
+  nutrition: NutritionInfo | null;
   created_at: string;
   created_from_groceries: boolean;
 }
@@ -276,7 +284,7 @@ export default function DashboardHome() {
                 Plan Another Meal
               </CardTitle>
               <CardDescription>
-               Look at all the meals you've made with pAIr!
+               Look at all the meals you&apos;ve made with pAIr!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

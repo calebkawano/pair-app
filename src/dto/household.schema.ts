@@ -44,7 +44,7 @@ export const supabaseHouseholdMemberSchema = z.object({
 
 // Supabase household row schema
 export const supabaseHouseholdRowSchema = z.object({
-  id: z.string(),
+  id: z.union([z.string(), z.number()]),
   name: z.string(),
   color: z.string().nullable().optional(),
   household_members: z.array(supabaseHouseholdMemberSchema).nullable().optional(),
@@ -54,8 +54,8 @@ export const supabaseHouseholdRowSchema = z.object({
 
 // Membership data schema
 export const membershipDataSchema = z.object({
-  household_id: z.string(),
-  role: z.enum(['admin', 'member'])
+  household_id: z.union([z.string(), z.number()]),
+  role: z.enum(['admin', 'member']).nullable().transform((val) => val || 'member')
 });
 
 // Type exports

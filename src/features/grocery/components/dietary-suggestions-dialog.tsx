@@ -27,19 +27,12 @@ interface DietarySuggestionsDialogProps {
     storageTips: string;
     nutritionalHighlights: string[];
   }>;
-  dietaryPreferences: {
-    dietaryGoal: string;
-    favoriteFood: string;
-    cookingTime: string;
-    servingCount: string;
-  };
 }
 
 export function DietarySuggestionsDialog({
   isOpen,
   onClose,
   suggestions,
-  dietaryPreferences,
 }: DietarySuggestionsDialogProps) {
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -168,7 +161,7 @@ export function DietarySuggestionsDialog({
           <DialogTitle>Suggested Items</DialogTitle>
           <DialogDescription>
             Based on your dietary preferences, here are some suggested items for your grocery list.
-            Select the items you'd like to add.
+            Select the items you&apos;d like to add.
           </DialogDescription>
         </DialogHeader>
 

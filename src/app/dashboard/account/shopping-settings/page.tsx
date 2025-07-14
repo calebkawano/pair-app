@@ -6,7 +6,7 @@ import {
   type ShoppingRecommendations,
   shoppingRecommendationsSchema
 } from '@/dto/shoppingSettings.schema';
-import { getShoppingSuggestions } from '@/lib/api/shopping';
+import { postShoppingSuggestions } from '@/lib/api/shopping';
 import { saveShoppingPreferences } from '@/lib/client/saveShoppingPreferences';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/client';
@@ -144,7 +144,7 @@ export default function ShoppingSettingsPage() {
       localStorage.setItem(storageKey, encryptedData);
       
       // Call the shopping suggestions API
-      const suggestions = await getShoppingSuggestions(plainForm);
+      const suggestions = await postShoppingSuggestions(plainForm);
       
       // Validate the suggestions with Zod
       try {
@@ -223,7 +223,7 @@ export default function ShoppingSettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <FlexInput id="favoriteStores" label="Preferred Stores" value={formData.favoriteStores} onChange={(v)=>handleFlexChange('favoriteStores',v)} options={STORE_OPTIONS_PLACEHOLDER} placeholder="Walmart, Trader Joe's" />
+                  <FlexInput id="favoriteStores" label="Preferred Stores" value={formData.favoriteStores} onChange={(v)=>handleFlexChange('favoriteStores',v)} options={STORE_OPTIONS_PLACEHOLDER} placeholder="Walmart, Trader Joe&apos;s" />
                 </div>
 
                 <div className="space-y-2">
@@ -243,7 +243,7 @@ export default function ShoppingSettingsPage() {
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Generating Recommendations...' : 'Save & Get Recommendations'}
+                  {isLoading ? 'Generating Recommendations...' : 'Save &amp; Get Recommendations'}
                 </Button>
               </div>
             </form>
@@ -343,7 +343,7 @@ export default function ShoppingSettingsPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground text-center py-8">
-                    Complete the form and click "Save & Get Recommendations" to see your personalized shopping advice.
+                    Complete the form and click &quot;Save &amp; Get Recommendations&quot; to see your personalized shopping advice.
                   </p>
                 </CardContent>
               </Card>

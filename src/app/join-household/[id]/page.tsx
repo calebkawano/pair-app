@@ -135,13 +135,13 @@ export default function JoinHouseholdPage({ params }: JoinHouseholdPageProps) {
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold">Join Household</h1>
           <p className="text-muted-foreground">
-            You've been invited to join {household?.name}
+            You&apos;ve been invited to join {household?.name}
           </p>
         </div>
 
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            By joining this household, you'll be able to:
+            By joining this household, you&apos;ll be able to:
           </p>
           <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
             <li>Request items for the shopping list</li>

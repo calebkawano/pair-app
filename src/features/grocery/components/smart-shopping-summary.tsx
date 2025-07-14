@@ -6,26 +6,6 @@ import { Clock, MapPin, PiggyBank } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-interface GroceryItem {
-  id: number;
-  item_name: string;
-  item_description: string | null;
-  quantity: number;
-  unit: string | null;
-  priority: 'urgent' | 'normal';
-  section?: string | null;
-  household: {
-    name: string;
-  };
-  requester: {
-    full_name: string;
-  };
-  approver: {
-    full_name: string;
-  } | null;
-  is_purchased?: boolean;
-}
-
 export function SmartShoppingSummary({ items, onOptimizationComplete }: SmartShoppingSummaryProps) {
   const [optimization, setOptimization] = useState<ShoppingOptimization | null>(null);
   const [loading, setLoading] = useState(false);

@@ -12,6 +12,14 @@ import { Star, Utensils } from "lucide-react";
 import { useState } from "react";
 import { MealDialog } from "./meal-dialog";
 
+interface NutritionInfo {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
 interface RecentMeal {
   id: string;
   meal_name: string;
@@ -21,7 +29,7 @@ interface RecentMeal {
   dietary_tags: string[];
   ingredients: string[];
   steps: string[];
-  nutrition: any;
+  nutrition: NutritionInfo | null;
   created_at: string;
   created_from_groceries: boolean;
 }

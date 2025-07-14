@@ -2,7 +2,8 @@
 
 import { PRIORITY_LEVELS, STORE_SECTIONS } from '@/constants/store';
 import { logger } from "@/lib/logger";
-import { useActiveHousehold, useSupabase } from "@/lib/use-supabase";
+import { createClient } from "@/lib/supabase/client";
+import { useActiveHousehold } from "@/lib/use-supabase";
 import { Button } from "@/ui/button";
 import {
   Dialog,
@@ -31,14 +32,21 @@ const UNITS = [
   'pcs', 'lbs', 'oz', 'kg', 'g', 'cups', 'tbsp', 'tsp', 'bottles', 'cans', 'boxes', 'bags', 'loaves'
 ];
 
-interface Household {
-  id: number;
+interface SuggestedItem {
   name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  notes: string;
+  section: string;
+  priority: string;
 }
 
-type DatabaseHouseholdMember = {
-  household_id: number;
-  household: Household;
+interface DatabaseError {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
 }
 
 interface AddItemDialogProps {
@@ -52,6 +60,9 @@ export function AddItemDialog({
   onClose,
   onItemAdded,
 }: AddItemDialogProps) {
+  const supabase = createClient();
+  const householdId = useActiveHousehold();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     quantity: '',
@@ -59,18 +70,15 @@ export function AddItemDialog({
     notes: '',
     section: '',
     priority: 'normal',
-    household_id: '',
+    household_id: '', // deprecated but kept for type consistency
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const supabase = useSupabase();
-  const householdId = useActiveHousehold();
   const [aiFormData, setAiFormData] = useState({
     mealType: '',
     preferences: '',
     dietary: '',
     occasion: '',
   });
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestedItem[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [addingItemIndex, setAddingItemIndex] = useState<number | null>(null);
 
@@ -194,9 +202,10 @@ export function AddItemDialog({
         priority: 'normal',
         household_id: '', // retained for type consistency
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const dbError = error as DatabaseError;
       logger.error({ error }, 'Failed to add item to grocery list');
-      toast.error(`Failed to add item: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to add item: ${dbError.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -245,7 +254,7 @@ export function AddItemDialog({
   };
 
   // Add a suggested item directly to the user's grocery list
-  const addSuggestedItem = async (item: any, itemIndex: number) => {
+  const addSuggestedItem = async (item: SuggestedItem, itemIndex: number) => {
     try {
       setAddingItemIndex(itemIndex);
 
@@ -315,7 +324,7 @@ export function AddItemDialog({
         });
       }
 
-      const { data: insertedData, error } = await supabase
+      const { error } = await supabase
         .from('food_requests')
         .insert([insertData]);
 
@@ -340,24 +349,25 @@ export function AddItemDialog({
       toast.success(`${item.name} added to your list`);
       // Refresh the parent page list
       onItemAdded();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const dbError = error as DatabaseError;
       logger.error('Failed to add suggested item:', {
         error,
-        errorMessage: error?.message,
-        errorDetails: error?.details,
-        errorHint: error?.hint,
-        errorCode: error?.code,
+        errorMessage: dbError.message,
+        errorDetails: dbError.details,
+        errorHint: dbError.hint,
+        errorCode: dbError.code,
         item,
         householdId
       });
       
       let errorMessage = 'Unknown error';
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (error?.code) {
-        errorMessage = `Database error (${error.code})`;
-      } else if (error?.hint) {
-        errorMessage = error.hint;
+      if (dbError.message) {
+        errorMessage = dbError.message;
+      } else if (dbError.code) {
+        errorMessage = `Database error (${dbError.code})`;
+      } else if (dbError.hint) {
+        errorMessage = dbError.hint;
       }
       
       toast.error(`Failed to add item: ${errorMessage}`);

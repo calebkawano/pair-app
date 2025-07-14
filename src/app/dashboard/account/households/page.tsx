@@ -16,8 +16,8 @@ export default function HouseholdsPage() {
     loading,
     userId,
     createHousehold,
-    updateHouseholdColor,
     deleteHousehold,
+    toggleExpanded,
   } = useHouseholds();
 
   /* UI local state */
@@ -90,13 +90,9 @@ export default function HouseholdsPage() {
             key={h.id}
             household={h}
             userId={userId}
-            toggle={() => {
-              // simple toggle managed locally inside the component via prop change
-              h.isExpanded = !h.isExpanded;
-            }}
+            toggle={toggleExpanded}
             onInvite={handleInvite}
             onRequestFood={(id)=>{setFoodHouseholdId(id); setFoodDialogOpen(true);}}
-            onColor={(house)=>updateHouseholdColor(house.id, house.color ?? '')}
             onDelete={(h)=>deleteHousehold(h.id)}
           />
         ))}
