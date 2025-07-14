@@ -1,4 +1,5 @@
 import { callChat, rateLimiter } from '@/lib/ai';
+import { handleApiError } from '@/lib/api/handleApiError';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
 import { requireUser } from '@/middleware';
@@ -126,10 +127,6 @@ Focus on practical, commonly available items that fit the meal type and dietary 
     requestLogger.info({ userId, itemCount: suggestions.items?.length }, 'Successfully generated meal-based grocery suggestions');
     return NextResponse.json(suggestions);
   } catch (error) {
-    requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error generating meal-based grocery suggestions');
-    return NextResponse.json(
-      { error: 'Failed to generate grocery suggestions', details: error instanceof Error ? error.message : undefined },
-      { status: 500 }
-    );
+    return handleApiError(error, 500);
   }
 } 

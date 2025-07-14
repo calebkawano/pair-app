@@ -1,4 +1,5 @@
 import { callChat, rateLimiter } from '@/lib/ai';
+import { handleApiError } from '@/lib/api/handleApiError';
 import { logger } from '@/lib/logger';
 import { requireUser } from '@/middleware';
 import { NextResponse } from 'next/server';
@@ -102,10 +103,6 @@ Format the response as a JSON object with these exact fields:
     requestLogger.info({ userId }, 'Successfully generated shopping recommendations');
     return NextResponse.json(recommendations);
   } catch (error) {
-    requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error generating shopping recommendations');
-    return NextResponse.json(
-      { error: 'Failed to generate shopping recommendations' },
-      { status: 500 }
-    );
+    return handleApiError(error, 500);
   }
 } 

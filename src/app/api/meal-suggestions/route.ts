@@ -1,4 +1,5 @@
 import { callChat, rateLimiter } from '@/lib/ai';
+import { handleApiError } from '@/lib/api/handleApiError';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
 import { requireUser } from '@/middleware';
@@ -127,10 +128,6 @@ export async function POST(req: Request) {
     requestLogger.info({ userId, mealName: suggestion.meal_name }, 'Successfully generated and saved meal');
     return NextResponse.json(mealData);
   } catch (error) {
-    requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error in meal suggestions');
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error, 500);
   }
 } 

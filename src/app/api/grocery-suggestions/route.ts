@@ -1,4 +1,5 @@
 import { callChat, rateLimiter } from '@/lib/ai';
+import { handleApiError } from '@/lib/api/handleApiError';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
 import { requireUser } from '@/middleware';
@@ -134,10 +135,6 @@ Format the response as a JSON array of objects with these exact fields:
     requestLogger.info({ userId, itemCount: suggestions.items?.length }, 'Successfully generated grocery suggestions');
     return NextResponse.json(suggestions);
   } catch (error) {
-    requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error generating shopping list');
-    return NextResponse.json(
-      { error: 'Failed to generate shopping list', details: error instanceof Error ? error.message : undefined },
-      { status: 500 }
-    );
+    return handleApiError(error, 500);
   }
 } 

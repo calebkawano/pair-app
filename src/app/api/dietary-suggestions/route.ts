@@ -1,4 +1,5 @@
 import { callChat, rateLimiter } from '@/lib/ai';
+import { handleApiError } from '@/lib/api/handleApiError';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
 import { requireUser } from '@/middleware';
@@ -179,10 +180,6 @@ Format the response as a JSON array of objects with these exact fields:
     
     return NextResponse.json(suggestions);
   } catch (error) {
-    requestLogger.error({ error, userId: req.headers.get('x-user-id') }, 'Error generating dietary suggestions');
-    return NextResponse.json(
-      { error: 'Failed to generate dietary suggestions' },
-      { status: 500 }
-    );
+    return handleApiError(error, 500);
   }
 } 

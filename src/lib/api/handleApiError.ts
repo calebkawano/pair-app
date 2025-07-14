@@ -1,12 +1,11 @@
 import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
+import { ClientApiError } from './errors';
 
 interface SafeErrorResponse {
-  status: number;
+  id: string;
   message: string;
-  id?: string;
-  stack?: string;
+  status: number;
 }
 
 /**
@@ -16,37 +15,49 @@ interface SafeErrorResponse {
  * Usage:
  * ```ts
  * try { ... } catch (err) { return handleApiError(err); }
+ * try { ... } catch (err) { return handleApiError(err, 400); }
  * ```
  */
-export function handleApiError(err: unknown): NextResponse<SafeErrorResponse> {
-  const id = uuidv4();
-
+export function handleApiError(err: unknown, defaultStatus = 500): NextResponse<SafeErrorResponse> {
+  // Generate or extract error ID
+  const id = err instanceof ClientApiError ? err.id : crypto.randomUUID();
+  
   // Always log full error for tracing
   logger.error({ id, err });
 
-  if (process.env.NODE_ENV === 'production') {
-    // Hide implementation details from client
-    return NextResponse.json(
-      {
-        status: 500,
-        message: 'Unexpected server error',
-        id, // expose short id so support can trace logs
-      },
-      { status: 500 },
-    );
+  // Determine if we're in production
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+  
+  // Handle ClientApiError instances
+  if (err instanceof ClientApiError) {
+    const response: SafeErrorResponse = {
+      id,
+      message: err.message,
+      status: err.status,
+    };
+    
+    return NextResponse.json(response, { status: err.status });
   }
 
-  // Development: return verbose stack/message to speed up debugging
-  const message = err instanceof Error ? err.message : 'Unknown error';
-  const stack = err instanceof Error ? err.stack : undefined;
-
-  return NextResponse.json(
-    {
-      status: 500,
-      message,
+  // Handle other errors
+  if (isProduction) {
+    // Hide implementation details from client
+    const response: SafeErrorResponse = {
       id,
-      stack,
-    },
-    { status: 500 },
-  );
+      message: 'Unexpected server error',
+      status: defaultStatus,
+    };
+    
+    return NextResponse.json(response, { status: defaultStatus });
+  }
+
+  // Development: return verbose message to speed up debugging
+  const message = err instanceof Error ? err.message : 'Unknown error';
+  const response: SafeErrorResponse = {
+    id,
+    message,
+    status: defaultStatus,
+  };
+
+  return NextResponse.json(response, { status: defaultStatus });
 } 

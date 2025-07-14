@@ -1,3 +1,4 @@
+import { handleApiError } from '@/lib/api/handleApiError';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
 import { requireUser } from '@/middleware';
@@ -159,10 +160,6 @@ export async function POST(request: Request) {
     requestLogger.info({ userId, householdId, inviteCode, phoneNumber: normalizedPhoneNumber }, 'Successfully created household invite');
     return NextResponse.json({ success: true, inviteLink });
   } catch (error) {
-    requestLogger.error({ error, userId: request.headers.get('x-user-id') }, 'Error sending invite');
-    return NextResponse.json(
-      { error: 'Failed to send invite' },
-      { status: 500 }
-    );
+    return handleApiError(error, 500);
   }
 } 
