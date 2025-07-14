@@ -13,7 +13,7 @@ import {
 import { motion, PanInfo, useMotionValue, useTransform } from "framer-motion";
 import { Check, ChevronDown, Heart, Info, Star, X } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface IngredientStatus {
   name: string;
@@ -54,6 +54,21 @@ export function SwipeableMealCard({ meal, onSwipeLeft, onSwipeRight, onClose, sh
     }
   }, [meal?.ingredients]);
 
+  // Handle swipe functions - moved before useEffect that uses them
+  const handleSwipeLeft = useCallback(() => {
+    x.set(-300);
+    setTimeout(() => {
+      onSwipeLeft();
+    }, 200);
+  }, [x, onSwipeLeft]);
+
+  const handleSwipeRight = useCallback(() => {
+    x.set(300);
+    setTimeout(() => {
+      onSwipeRight();
+    }, 200);
+  }, [x, onSwipeRight]);
+
   // Handle keyboard events
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -68,7 +83,7 @@ export function SwipeableMealCard({ meal, onSwipeLeft, onSwipeRight, onClose, sh
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onSwipeLeft, onSwipeRight, onClose]);
+  }, [handleSwipeLeft, handleSwipeRight, onClose]);
 
   const handleDragEnd = (event: PointerEvent, info: PanInfo) => {
     const threshold = 100;
@@ -81,20 +96,6 @@ export function SwipeableMealCard({ meal, onSwipeLeft, onSwipeRight, onClose, sh
       // Snap back to center
       x.set(0);
     }
-  };
-
-  const handleSwipeLeft = () => {
-    x.set(-300);
-    setTimeout(() => {
-      onSwipeLeft();
-    }, 200);
-  };
-
-  const handleSwipeRight = () => {
-    x.set(300);
-    setTimeout(() => {
-      onSwipeRight();
-    }, 200);
   };
 
   // Color overlays based on swipe direction

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface JoinHouseholdPageProps {
@@ -21,11 +21,7 @@ export default function JoinHouseholdPage({ params }: JoinHouseholdPageProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkHousehold();
-  }, []);
-
-  const checkHousehold = async () => {
+  const checkHousehold = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -67,7 +63,11 @@ export default function JoinHouseholdPage({ params }: JoinHouseholdPageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, supabase]);
+
+  useEffect(() => {
+    checkHousehold();
+  }, [checkHousehold]);
 
   const joinHousehold = async () => {
     try {

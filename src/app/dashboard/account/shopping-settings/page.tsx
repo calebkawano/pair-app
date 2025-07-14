@@ -2,9 +2,9 @@
 
 import { FlexInput, FlexValue } from "@/components/FlexInput";
 import {
-  type ShoppingFormData,
-  type ShoppingRecommendations,
-  shoppingRecommendationsSchema
+    type ShoppingFormData,
+    type ShoppingRecommendations,
+    shoppingRecommendationsSchema
 } from '@/dto/shoppingSettings.schema';
 import { postShoppingSuggestions } from '@/lib/api/shopping';
 import { saveShoppingPreferences } from '@/lib/client/saveShoppingPreferences';
@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/
 import AES from 'crypto-js/aes';
 import encUtf8 from 'crypto-js/enc-utf8';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 const BUDGET_OPTIONS = [
@@ -59,31 +59,19 @@ export default function ShoppingSettingsPage() {
   const handleFlexChange = (field: keyof ShoppingFormData, v: FlexValue) =>
     setFormData((prev) => ({ ...prev, [field]: v }));
 
-  // Initialize user and load saved preferences
-  useEffect(() => {
-    const initializeUser = async () => {
-      const { data: { user } } = await createClient().auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        loadSavedPreferences(user.id);
-      }
-    };
-    initializeUser();
-  }, []);
+  const getStorageKey = useCallback((userId: string) => 
+    `${process.env.NEXT_PUBLIC_APP_SLUG}:${userId}:shoppingSettings`, []);
 
-  const getStorageKey = (userId: string) => 
-    `${process.env.NEXT_PUBLIC_APP_SLUG}:${userId}:shoppingSettings`;
-
-  const encryptData = (data: string) => {
+  const encryptData = useCallback((data: string) => {
     const key = process.env.NEXT_PUBLIC_STORAGE_KEY;
     if (!key) {
       logger.warn('Storage encryption key not configured');
       return data;
     }
     return AES.encrypt(data, key).toString();
-  };
+  }, []);
 
-  const decryptData = (encryptedData: string) => {
+  const decryptData = useCallback((encryptedData: string) => {
     const key = process.env.NEXT_PUBLIC_STORAGE_KEY;
     if (!key) {
       logger.warn('Storage encryption key not configured');
@@ -96,9 +84,9 @@ export default function ShoppingSettingsPage() {
       logger.error('Failed to decrypt storage data:', error);
       return null;
     }
-  };
+  }, []);
 
-  const loadSavedPreferences = (userId: string) => {
+  const loadSavedPreferences = useCallback((userId: string) => {
     try {
       const storageKey = getStorageKey(userId);
       const savedData = localStorage.getItem(storageKey);
@@ -117,7 +105,19 @@ export default function ShoppingSettingsPage() {
     } catch (error) {
       logger.error('Failed to load saved preferences:', error);
     }
-  };
+  }, [getStorageKey, decryptData]);
+
+  // Initialize user and load saved preferences
+  useEffect(() => {
+    const initializeUser = async () => {
+      const { data: { user } } = await createClient().auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        loadSavedPreferences(user.id);
+      }
+    };
+    initializeUser();
+  }, [loadSavedPreferences]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

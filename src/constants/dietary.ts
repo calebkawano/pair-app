@@ -28,11 +28,17 @@ export const COOKING_TIME_OPTIONS: Option[] = [
   { label: 'Weekly meal prep', value: 'meal-prep' },
 ];
 
-// Broad cuisine or category picks
+// Cuisine-based food category options - matches cuisineCategories from dummy data
 export const FOOD_CATEGORY_OPTIONS: Option[] = [
-  { label: 'Italian', value: 'italian' },
   { label: 'Mexican', value: 'mexican' },
   { label: 'Chinese', value: 'chinese' },
   { label: 'Indian', value: 'indian' },
+  { label: 'Italian', value: 'italian' },
   { label: 'Japanese', value: 'japanese' },
+  { label: 'Thai', value: 'thai' },
+  { label: 'Greek', value: 'greek' },
+  { label: 'Korean', value: 'korean' },
+  { label: 'French', value: 'french' },
+  { label: 'Middle Eastern', value: 'middle-eastern' },
+  { label: 'BBQ', value: 'bbq' },
 ]; 

@@ -3,11 +3,11 @@
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/ui/dialog";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
@@ -15,7 +15,7 @@ import { Switch } from "@/ui/switch";
 import type { User } from "@supabase/supabase-js";
 import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface EditProfileDialogProps {
@@ -50,19 +50,7 @@ export function EditProfileDialog({ isOpen, onClose, user, onSaveSuccess }: Edit
   const supabase = createClient();
   const router = useRouter();
 
-  useEffect(() => {
-    if (isOpen && user) {
-      loadUserProfile();
-    }
-  }, [isOpen, user]);
-
-  useEffect(() => {
-    // Check if form data has changed
-    const changed = JSON.stringify(formData) !== JSON.stringify(originalData);
-    setHasChanges(changed);
-  }, [formData, originalData]);
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
@@ -95,7 +83,19 @@ export function EditProfileDialog({ isOpen, onClose, user, onSaveSuccess }: Edit
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, supabase]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      loadUserProfile();
+    }
+  }, [isOpen, user, loadUserProfile]);
+
+  useEffect(() => {
+    // Check if form data has changed
+    const changed = JSON.stringify(formData) !== JSON.stringify(originalData);
+    setHasChanges(changed);
+  }, [formData, originalData]);
 
   const handleInputChange = (field: keyof typeof formData, value: string | number | boolean) => {
     setFormData(prev => ({

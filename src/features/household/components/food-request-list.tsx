@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card } from "@/ui/card";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface FoodRequest {
@@ -39,11 +39,7 @@ export function FoodRequestList({ householdId, isAdmin }: FoodRequestListProps) 
   const [updating, setUpdating] = useState<string | null>(null);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadRequests();
-  }, [householdId]);
-
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -216,7 +212,11 @@ export function FoodRequestList({ householdId, isAdmin }: FoodRequestListProps) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [householdId, supabase]);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
 
   const updateRequestStatus = async (requestId: string, status: 'approved' | 'declined') => {
     try {

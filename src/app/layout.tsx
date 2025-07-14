@@ -12,17 +12,17 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/images/logos/pair-logo-full.png",
+        url: "/images/logos/pair-logo-full-light.png",
         sizes: "32x32",
         type: "image/png"
       },
       {
-        url: "/images/logos/pair-logo-full.png",
+        url: "/images/logos/pair-logo-full-light.png",
         sizes: "192x192",
         type: "image/png"
       }
     ],
-    apple: "/images/logos/pair-logo-full.png"
+    apple: "/images/logos/pair-logo-full-light.png"
   }
 };
 

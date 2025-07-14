@@ -13,7 +13,7 @@ import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Check, ChevronDown, ChevronUp, Edit2, Plus, Save, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface GroceryItem {
@@ -121,21 +121,46 @@ export default function GroceryListPage() {
     return HOUSEHOLD_COLORS[Math.abs(hash) % HOUSEHOLD_COLORS.length];
   };
 
-  useEffect(() => {
-    if (user?.id) {
-      loadGroceryListAndSuggestions();
-      loadHouseholdColors();
+  const loadGroceryList = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      const data = await getFoodRequests(user.id);
+      setItems(data as unknown as GroceryItem[]);
+    } catch (error) {
+      console.error('Error loading grocery list:', error);
+      toast.error('Failed to load grocery list. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('recentGroceries');
-    if (saved) {
-      try { setRecentItems(JSON.parse(saved)); } catch {}
+  const loadHouseholdColors = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data: households, error } = await supabase
+        .from('households')
+        .select('name, color')
+        .eq('created_by', user.id);
+
+      if (error) throw error;
+
+      const colorMap: Record<string, string> = {};
+      households?.forEach(household => {
+        if (household.color) {
+          colorMap[household.name] = household.color;
+        }
+      });
+      
+      setHouseholdColors(colorMap);
+    } catch (error) {
+      console.error('Error loading household colors:', error);
     }
-  }, []);
+  }, [user?.id, supabase]);
 
-  const loadGroceryListAndSuggestions = async () => {
+  const loadGroceryListAndSuggestions = useCallback(async () => {
     // First load the existing grocery list
     await loadGroceryList();
     
@@ -211,46 +236,21 @@ export default function GroceryListPage() {
     } else {
       console.log('No AI suggestions found in localStorage');
     }
-  };
+  }, [loadGroceryList]);
 
-  const loadGroceryList = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setLoading(true);
-      const data = await getFoodRequests(user.id);
-      setItems(data as unknown as GroceryItem[]);
-    } catch (error) {
-      console.error('Error loading grocery list:', error);
-      toast.error('Failed to load grocery list. Please try again.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (user?.id) {
+      loadGroceryListAndSuggestions();
+      loadHouseholdColors();
     }
-  };
+  }, [user?.id, loadGroceryListAndSuggestions, loadHouseholdColors]);
 
-  const loadHouseholdColors = async () => {
-    if (!user?.id) return;
-    
-    try {
-      const { data: households, error } = await supabase
-        .from('households')
-        .select('name, color')
-        .eq('created_by', user.id);
-
-      if (error) throw error;
-
-      const colorMap: Record<string, string> = {};
-      households?.forEach(household => {
-        if (household.color) {
-          colorMap[household.name] = household.color;
-        }
-      });
-      
-      setHouseholdColors(colorMap);
-    } catch (error) {
-      console.error('Error loading household colors:', error);
+  useEffect(() => {
+    const saved = localStorage.getItem('recentGroceries');
+    if (saved) {
+      try { setRecentItems(JSON.parse(saved)); } catch {}
     }
-  };
+  }, []);
 
   const toggleItemPurchased = async (itemId: string) => {
     const item = items.find(i => i.id === itemId);

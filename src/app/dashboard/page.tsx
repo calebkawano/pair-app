@@ -9,7 +9,7 @@ import { User } from "@supabase/supabase-js";
 import { ChefHat, Clock, List, ShoppingCart, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Profile {
   full_name?: string | null;
@@ -51,30 +51,7 @@ export default function DashboardHome() {
   const supabase = createClient();
   const router = useRouter();
 
-  useEffect(() => {
-    setMounted(true);
-    
-    // Generate the witty message once when component mounts
-    const messages = [
-      "Looks like you reallyyy like chicken 🐔",
-      "Time to add some more veggies to your life! 🥕",
-      "Your pasta game is strong, but variety is the spice of life ✨",
-      "We see you avoiding those greens... 👀🥬",
-      "Chicken again? Your taste buds might be getting bored! 😄",
-      "Your shopping cart needs more colors - think rainbow! 🌈",
-      "Beef enthusiast detected! Maybe try some fish? 🐟",
-      "Your sweet tooth is showing - balance is key! 🍎",
-      "You're practically a pasta connoisseur at this point! 🍝",
-      "Time to venture beyond your comfort foods! 🌟"
-    ];
-    
-    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-    setWittyMessage(randomMessage);
-    
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
@@ -143,7 +120,30 @@ export default function DashboardHome() {
     } catch (error) {
       console.error('Error loading shopping list data:', error);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    // Generate the witty message once when component mounts
+    const messages = [
+      "Looks like you reallyyy like chicken 🐔",
+      "Time to add some more veggies to your life! 🥕",
+      "Your pasta game is strong, but variety is the spice of life ✨",
+      "We see you avoiding those greens... 👀🥬",
+      "Chicken again? Your taste buds might be getting bored! 😄",
+      "Your shopping cart needs more colors - think rainbow! 🌈",
+      "Beef enthusiast detected! Maybe try some fish? 🐟",
+      "Your sweet tooth is showing - balance is key! 🍎",
+      "You're practically a pasta connoisseur at this point! 🍝",
+      "Time to venture beyond your comfort foods! 🌟"
+    ];
+    
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    setWittyMessage(randomMessage);
+    
+    loadUserData();
+  }, [loadUserData]);
 
   const lastMeal = recentMeals.length > 0 ? recentMeals[0] : null;
 

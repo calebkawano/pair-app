@@ -60,7 +60,7 @@ export function FlexInput({
           variant="outline"
           onClick={switchMode}
         >
-          {inputMode === "dropdown" ? "Use text" : "Use list"}
+          {inputMode === "dropdown" ? "Switch to: Customize" : "Switch to: Built in List"}
         </Button>
       </div>
       {inputMode === "dropdown" ? (

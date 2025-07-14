@@ -13,6 +13,7 @@ let _browserClient: SupabaseClient<Database> | null = null;
 function getBrowserClient() {
   if (!_browserClient) {
     // Dynamically import to avoid bundling server code in browser
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createBrowserClient } = require("@supabase/ssr");
     _browserClient = createBrowserClient(
       SUPABASE_URL,
@@ -27,7 +28,9 @@ function getBrowserClient() {
 // ------------------------------------------------------------
 function getServerClient() {
   // Dynamically import server-only modules to avoid bundling them in the client build
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { cookies } = require("next/headers");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createServerClient } = require("@supabase/ssr");
 
   const cookieStore = cookies();

@@ -8,7 +8,7 @@ import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { ChefHat, Dice6, Loader2, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface NutritionInfo {
@@ -55,7 +55,7 @@ const convertApiMealToMeal = (apiMeal: ApiMealData): Meal => {
   return {
     id: apiMeal.id || Math.random().toString(36).substring(7),
     name: apiMeal.meal_name || apiMeal.name || 'Untitled Meal',
-    category: apiMeal.category || 'random',
+    category: apiMeal.category ? (apiMeal.category as "random" | "high-protein" | "vegetarian" | "vegan" | "snack" | "treat") : 'random',
     cookingTime: apiMeal.cooking_time || apiMeal.cookingTime || '30 mins',
     rating: apiMeal.rating || 4,
     dietaryTags: apiMeal.dietary_tags || apiMeal.dietaryTags || [],
@@ -83,11 +83,7 @@ export default function MealsPage() {
   const [viewedRandomMeals, setViewedRandomMeals] = useState<Set<string>>(new Set());
   const supabase = createClient();
 
-  useEffect(() => {
-    loadRecentMeals();
-  }, []);
-
-  const loadRecentMeals = async () => {
+  const loadRecentMeals = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -111,7 +107,11 @@ export default function MealsPage() {
       console.error('Error in loadRecentMeals:', error);
       toast.error('Failed to load recent meals');
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadRecentMeals();
+  }, [loadRecentMeals]);
 
   const handleCategorySelect = (category: MealCategory) => {
     setSelectedCategory(category);

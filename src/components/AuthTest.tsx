@@ -34,7 +34,7 @@ export default function AuthTest() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, supabase.auth]);
 
   const handleEmailLogin = async () => {
     const { error } = await supabase.auth.signInWithPassword({
