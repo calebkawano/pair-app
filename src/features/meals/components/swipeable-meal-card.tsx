@@ -116,7 +116,7 @@ export function SwipeableMealCard({ meal, onSwipeLeft, onSwipeRight, onClose, sh
         .in('status', ['approved'])
         .is('deleted_at', null);
 
-      const existingNames = (cartItems || []).map((i) => i.item_name.toLowerCase());
+      const existingNames = (cartItems || []).map((i: { item_name: string }) => i.item_name.toLowerCase());
 
       setIngredientStatuses((prev) =>
         prev.map((ing) => ({

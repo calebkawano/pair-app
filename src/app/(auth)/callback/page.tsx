@@ -20,7 +20,7 @@ function CallbackContent() {
     if (access_token && refresh_token) {
       supabase.auth
         .setSession({ access_token, refresh_token })
-        .then(({ error }) => {
+        .then(({ error }: { error: { message: string } | null }) => {
           if (error) {
             setError(error.message);
           } else {

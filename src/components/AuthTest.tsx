@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/ui/button';
-import type { User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -22,7 +22,7 @@ export default function AuthTest() {
 
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: AuthChangeEvent, session: Session | null) => {
         setUser(session?.user ?? null);
         // Only handle sign out navigation here
         if (event === 'SIGNED_OUT') {

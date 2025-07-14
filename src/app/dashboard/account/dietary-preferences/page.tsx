@@ -178,15 +178,21 @@ export default function DietaryPreferencesPage() {
         logger.info('Saving preferences to household_members:', formData);
       }
 
-      // Use upsert to ensure the row is created if it doesn't exist
+      // Upsert on the composite key (household_id, user_id) so we UPDATE rather than INSERT
       const { error } = await supabase
         .from('household_members')
-        .upsert({
-          household_id: activeHouseholdId,
-          user_id: user.id,
-          dietary_preferences: formData,
-          role: 'admin', // Default role if creating new row
-        });
+        .upsert(
+          {
+            household_id: activeHouseholdId,
+            user_id: user.id,
+            dietary_preferences: formData,
+            role: 'member', // ensure NOT NULL constraint is satisfied on insert; ignored on update
+          },
+          {
+            onConflict: 'household_id,user_id',
+            updateColumns: ['dietary_preferences'],
+          }
+        );
 
       if (error) throw error;
 

@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/client';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 // 25 Tailwind background colour classes for households
 const COLOR_OPTIONS: readonly string[] = [
@@ -16,6 +17,8 @@ const COLOR_OPTIONS: readonly string[] = [
   'bg-fuchsia-500','bg-sky-500','bg-slate-500','bg-gray-500','bg-zinc-500',
   'bg-neutral-500','bg-stone-500','bg-blue-700','bg-green-700','bg-red-700',
 ] as const;
+
+type Membership = z.infer<typeof membershipDataSchema>;
 
 /**
  * Centralised data/logic layer for household management UI.
@@ -52,22 +55,22 @@ export function useHouseholds() {
         return;
       }
 
-      const validatedMemberships = membershipData
-        .map((item) => {
+      const validatedMemberships: Membership[] = (membershipData as unknown[])
+        .map((item: unknown): Membership | null => {
           try {
             return membershipDataSchema.parse(item);
           } catch {
             return null; // Return null for invalid entries
           }
         })
-        .filter((item): item is NonNullable<typeof item> => item !== null); // Filter out null entries
+        .filter((item: Membership | null): item is Membership => item !== null); // Filter out null entries
 
       if (!validatedMemberships.length) {
         setHouseholds([]);
         return;
       }
 
-      const householdIds = validatedMemberships.map(m => m.household_id);
+      const householdIds = validatedMemberships.map((m) => m.household_id);
 
       const { data: householdsData, error: householdsError } = await supabase
         .from('households')
@@ -94,7 +97,7 @@ export function useHouseholds() {
       if (householdsError) throw householdsError;
       if (!householdsData) return setHouseholds([]);
 
-      const formatted = householdsData.map(row => {
+      const formatted = (householdsData as unknown[]).map((row) => {
         try {
           const h = supabaseHouseholdRowSchema.parse(row);
           return {

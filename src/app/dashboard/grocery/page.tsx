@@ -148,7 +148,7 @@ export default function GroceryListPage() {
       if (error) throw error;
 
       const colorMap: Record<string, string> = {};
-      households?.forEach(household => {
+      households?.forEach((household: { name: string; color?: string | null }) => {
         if (household.color) {
           colorMap[household.name] = household.color;
         }

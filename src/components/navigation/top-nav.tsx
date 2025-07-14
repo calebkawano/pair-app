@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/button";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { Home, Info, Moon, Sun, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,7 +30,7 @@ export function TopNav() {
 
     let subscription: ReturnType<typeof supabase.auth.onAuthStateChange>["data"]["subscription"] | undefined;
     try {
-      ({ data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      ({ data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
         setUser(session?.user ?? null);
       }));
     } catch (err) {
