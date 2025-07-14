@@ -1,6 +1,6 @@
 import type { UserPreferences } from '@/types/grocery';
 import { z } from 'zod';
-import { fetchJson } from './fetchJson';
+import { postJson } from './post-json';
 import { apiRoutes } from './routes';
 
 // Minimal Grocery suggestion schema - refine once backend contract stabilises
@@ -18,15 +18,14 @@ const grocerySuggestionsResponseSchema = z.object({
 export type GrocerySuggestion = z.infer<typeof grocerySuggestionSchema>;
 export type GrocerySuggestionsResponse = z.infer<typeof grocerySuggestionsResponseSchema>;
 
-export async function postGrocerySuggestions(
-  req: UserPreferences,
-): Promise<GrocerySuggestionsResponse> {
-  return fetchJson<UserPreferences, GrocerySuggestionsResponse>(
-    apiRoutes.grocerySuggestions,
-    {
-      body: req,
-      schema: grocerySuggestionsResponseSchema,
-      toastError: 'Failed to get grocery suggestions',
-    },
-  );
-} 
+/**
+ * Generates AI-powered grocery suggestions based on user preferences.
+ */
+export const postGrocerySuggestions = postJson<
+  UserPreferences,
+  GrocerySuggestionsResponse
+>(
+  apiRoutes.grocerySuggestions,
+  grocerySuggestionsResponseSchema,
+  'Grocery preferences saved!',
+); 

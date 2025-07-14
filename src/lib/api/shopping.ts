@@ -1,21 +1,22 @@
 
 import {
-  type PlainShoppingSettings,
-  type ShoppingRecommendations,
-  shoppingRecommendationsSchema,
+    type PlainShoppingSettings,
+    type ShoppingRecommendations,
+    shoppingRecommendationsSchema,
 } from '@/dto/shoppingSettings.schema';
-import { fetchJson } from './fetchJson';
+import { postJson } from './post-json';
 import { apiRoutes } from './routes';
 
-export async function postShoppingSuggestions(
-  req: PlainShoppingSettings,
-): Promise<ShoppingRecommendations> {
-  return fetchJson<{ preferences: PlainShoppingSettings }, ShoppingRecommendations>(
+/**
+ * Fetches personalised shopping recommendations.
+ * Wraps the payload in a { preferences } object to align with API contract.
+ */
+export const postShoppingSuggestions = (
+  preferences: PlainShoppingSettings,
+  opts?: { timeoutMs?: number; retries?: number },
+) =>
+  postJson<{ preferences: PlainShoppingSettings }, ShoppingRecommendations>(
     apiRoutes.shoppingSuggestions,
-    {
-      body: { preferences: req },
-      schema: shoppingRecommendationsSchema,
-      toastError: 'Failed to get shopping suggestions',
-    },
-  );
-} 
+    shoppingRecommendationsSchema,
+    'Shopping settings saved!',
+  )({ preferences }, opts); 
