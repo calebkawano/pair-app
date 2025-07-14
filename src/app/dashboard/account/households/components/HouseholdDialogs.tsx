@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 interface Props {
   selected: Household | null;
-  onInviteLink: (householdId: string) => void;
+  onInviteLink: (householdId: string) => string;
   onSendSMS: (householdId: string, phone: string) => Promise<void>;
   open: boolean;
   setOpen: (o: boolean) => void;
@@ -52,7 +52,13 @@ export function InviteDialog({ selected, onInviteLink, onSendSMS, open, setOpen 
           <TabsContent value="text" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" type="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={(e)=>setPhone(e.target.value)} />
+              <Input 
+                id="phone" 
+                type="tel" 
+                placeholder="+1 (555) 000-0000" 
+                value={phone} 
+                onChange={(e)=>setPhone(e.target.value)} 
+              />
             </div>
             <Button className="w-full" onClick={handleSend} disabled={!phone || sending}>
               <MessageSquare className="w-4 h-4 mr-2" /> {sending ? 'Sending...' : 'Send Invite'}
@@ -63,7 +69,15 @@ export function InviteDialog({ selected, onInviteLink, onSendSMS, open, setOpen 
               <Label>Shareable Link</Label>
               <div className="flex gap-2">
                 <Input readOnly value={selected ? onInviteLink(selected.id) : ''} />
-                <Button variant="outline" onClick={() => selected && navigator.clipboard.writeText(onInviteLink(selected.id))}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    if (selected) {
+                      navigator.clipboard.writeText(onInviteLink(selected.id));
+                      toast.success('Link copied to clipboard');
+                    }
+                  }}
+                >
                   <Copy className="w-4 h-4" />
                 </Button>
               </div>

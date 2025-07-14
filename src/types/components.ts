@@ -2,7 +2,7 @@ import { GroceryItem } from './grocery';
 
 export interface GroceryListProps {
   items: GroceryItem[];
-  onToggleItem: (id: number) => void;
+  onToggleItem: (id: string) => void;
   showCategories?: boolean;
   showQuantities?: boolean;
   showPriorities?: boolean;

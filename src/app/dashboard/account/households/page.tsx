@@ -74,7 +74,13 @@ export default function HouseholdsPage() {
               <DialogDescription>Create a new household to manage shopping and meal planning.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <input value={newName} onChange={(e)=>setNewName(e.target.value)} placeholder="Household name" className="border p-2 w-full rounded" />
+              <input 
+                type="text"
+                value={newName} 
+                onChange={(e)=>setNewName(e.target.value)} 
+                placeholder="Household name" 
+                className="border p-2 w-full rounded" 
+              />
             </div>
             <DialogFooter>
               <Button onClick={handleCreate} disabled={!newName.trim()}>Create</Button>

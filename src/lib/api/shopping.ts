@@ -10,10 +10,10 @@ import { apiRoutes } from './routes';
 export async function postShoppingSuggestions(
   req: PlainShoppingSettings,
 ): Promise<ShoppingRecommendations> {
-  return fetchJson<PlainShoppingSettings, ShoppingRecommendations>(
+  return fetchJson<{ preferences: PlainShoppingSettings }, ShoppingRecommendations>(
     apiRoutes.shoppingSuggestions,
     {
-      body: req,
+      body: { preferences: req },
       schema: shoppingRecommendationsSchema,
       toastError: 'Failed to get shopping suggestions',
     },

@@ -1,10 +1,6 @@
-import { SmartSummary } from "@/lib/dummy-data";
+import { SmartSummaryProps } from "@/types/components";
 import { Card } from "@/ui/card";
 import { Clock, DollarSign, Store } from "lucide-react";
-
-interface SmartSummaryProps {
-  summary: SmartSummary;
-}
 
 export function SmartSummaryCard({ summary }: SmartSummaryProps) {
   return (
@@ -16,7 +12,7 @@ export function SmartSummaryCard({ summary }: SmartSummaryProps) {
           <div>
             <p className="font-medium">Recommended Route:</p>
             <p className="text-muted-foreground">
-              Visit {summary.stores.map((store, i) => (
+              Visit {summary.stores.map((store: string, i: number) => (
                 <span key={store}>
                   {i > 0 && i === summary.stores.length - 1 ? " then " : ""}
                   {i > 0 && i < summary.stores.length - 1 ? ", " : ""}

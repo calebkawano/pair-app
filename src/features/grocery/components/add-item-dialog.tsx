@@ -90,9 +90,12 @@ export function AddItemDialog({
       return;
     }
 
+    let user: { id: string; email?: string } | null = null;
+    
     try {
       setIsSubmitting(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      user = authUser;
       
       if (!user) {
         toast.error('You must be logged in to add items');
@@ -135,23 +138,28 @@ export function AddItemDialog({
         logger.info('Household membership verified:', membership);
       }
 
-      // Verify profile exists (food_requests.requested_by FK)
-      const { data: profileRow } = await supabase
+      // Debug: Check if user exists in profiles table
+      const { data: profileCheck, error: profileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!profileRow) {
-        // Create minimal profile row so FK passes
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{ id: user.id, full_name: user.user_metadata?.full_name || user.email }]);
-        if (profileError) {
-          logger.error('Failed to create profile row for user', profileError);
-          toast.error('Could not set up user profile for grocery list');
-          return;
-        }
+      if (profileError) {
+        logger.error('Error checking user profile:', {
+          profileError,
+          userId: user.id
+        });
+      } else if (!profileCheck) {
+        logger.warn('User not found in profiles table:', {
+          userId: user.id,
+          userEmail: user.email
+        });
+      } else {
+        logger.info('User profile verified:', {
+          userId: user.id,
+          profileExists: true
+        });
       }
 
       if (process.env.NODE_ENV !== 'production') {
@@ -182,7 +190,28 @@ export function AddItemDialog({
         .single();
 
       if (error) {
-        logger.error({ error }, 'Failed to insert food request');
+        logger.error({ 
+          error, 
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          errorCode: error.code,
+          insertData: {
+            household_id: householdId,
+            requested_by: user.id,
+            item_name: formData.name.trim(),
+            item_description: formData.notes.trim() || null,
+            quantity: formData.quantity ? parseInt(formData.quantity) : 1,
+            unit: formData.unit.trim() || null,
+            status: 'approved',
+            section: formData.section || null,
+            priority: formData.priority,
+            is_manual: true,
+          },
+          userId: user.id,
+          householdId,
+          userEmail: user.email
+        }, 'Failed to insert food request');
         throw error;
       }
 
@@ -204,8 +233,35 @@ export function AddItemDialog({
       });
     } catch (error: unknown) {
       const dbError = error as DatabaseError;
-      logger.error({ error }, 'Failed to add item to grocery list');
-      toast.error(`Failed to add item: ${dbError.message || 'Unknown error'}`);
+      
+      // Enhanced error logging with complete error serialization
+      logger.error({
+        errorMessage: dbError.message || 'Unknown error',
+        errorDetails: dbError.details || 'No details available',
+        errorHint: dbError.hint || 'No hint available',
+        errorCode: dbError.code || 'No code available',
+        errorString: String(error),
+        errorJSON: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        formData,
+        userId: user?.id,
+        householdId,
+        userEmail: user?.email,
+        timestamp: new Date().toISOString()
+      }, 'Failed to add item to grocery list - Complete diagnostic');
+      
+      // Provide user-friendly error messages
+      let userMessage = 'Failed to add item to grocery list';
+      if (dbError.code === '23503') {
+        userMessage = 'Database constraint error: Foreign key reference issue. Please contact support.';
+      } else if (dbError.code === '42501') {
+        userMessage = 'Permission denied: You may not have access to this household';
+      } else if (dbError.code === '23505') {
+        userMessage = 'Duplicate item: This item may already exist in your list';
+      } else if (dbError.message) {
+        userMessage = `Failed to add item: ${dbError.message}`;
+      }
+      
+      toast.error(userMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -255,10 +311,13 @@ export function AddItemDialog({
 
   // Add a suggested item directly to the user's grocery list
   const addSuggestedItem = async (item: SuggestedItem, itemIndex: number) => {
+    let user: { id: string; email?: string } | null = null;
+    
     try {
       setAddingItemIndex(itemIndex);
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      user = authUser;
 
       if (!user) {
         toast.error('You must be logged in to add items');
@@ -351,18 +410,30 @@ export function AddItemDialog({
       onItemAdded();
     } catch (error: unknown) {
       const dbError = error as DatabaseError;
-      logger.error('Failed to add suggested item:', {
-        error,
-        errorMessage: dbError.message,
-        errorDetails: dbError.details,
-        errorHint: dbError.hint,
-        errorCode: dbError.code,
+      
+      // Enhanced error logging with complete error serialization
+      logger.error({
+        errorMessage: dbError.message || 'Unknown error',
+        errorDetails: dbError.details || 'No details available',
+        errorHint: dbError.hint || 'No hint available',
+        errorCode: dbError.code || 'No code available',
+        errorString: String(error),
+        errorJSON: JSON.stringify(error, Object.getOwnPropertyNames(error)),
         item,
-        householdId
-      });
+        householdId,
+        userId: user?.id,
+        userEmail: user?.email,
+        timestamp: new Date().toISOString()
+      }, 'Failed to add suggested item - Complete diagnostic');
       
       let errorMessage = 'Unknown error';
-      if (dbError.message) {
+      if (dbError.code === '23503') {
+        errorMessage = 'Database constraint error: Foreign key reference issue. Please contact support.';
+      } else if (dbError.code === '42501') {
+        errorMessage = 'Permission denied: You may not have access to this household';
+      } else if (dbError.code === '23505') {
+        errorMessage = 'Duplicate item: This item may already exist in your list';
+      } else if (dbError.message) {
         errorMessage = dbError.message;
       } else if (dbError.code) {
         errorMessage = `Database error (${dbError.code})`;

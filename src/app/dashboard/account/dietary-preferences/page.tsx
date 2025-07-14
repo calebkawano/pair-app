@@ -8,7 +8,7 @@ import {
   plainDietaryPreferencesSchema
 } from '@/dto/dietarySuggestion.schema';
 import { DietarySuggestionsDialog } from '@/features/grocery/components/dietary-suggestions-dialog';
-import { getDietarySuggestions } from '@/lib/api/dietary';
+import { postDietaryPreferences } from '@/lib/api/dietary';
 import { logger } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/client';
 import { useActiveHousehold } from '@/lib/use-supabase';
@@ -186,16 +186,36 @@ export default function DietaryPreferencesPage() {
           user_id: user.id,
           dietary_preferences: formData,
           role: 'admin', // Default role if creating new row
-        }, {
-          onConflict: 'household_id,user_id'
         });
 
       if (error) throw error;
 
       toast.success('Dietary preferences saved successfully!');
     } catch (error: unknown) {
-      logger.error('Error saving dietary preferences:', error);
-      toast.error(`Failed to save dietary preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Enhanced error logging with complete error serialization
+      const dbError = error as { message?: string; details?: string; hint?: string; code?: string };
+      logger.error({
+        errorMessage: dbError?.message || 'Unknown error',
+        errorDetails: dbError?.details || 'No details available',
+        errorHint: dbError?.hint || 'No hint available',
+        errorCode: dbError?.code || 'No code available',
+        errorString: String(error),
+        errorJSON: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        formData,
+        activeHouseholdId,
+        timestamp: new Date().toISOString()
+      }, 'Error saving dietary preferences - Complete diagnostic');
+      
+      let userMessage = 'Failed to save dietary preferences';
+      if (dbError?.code === '23503') {
+        userMessage = 'Database constraint error: Please check your household membership';
+      } else if (dbError?.code === '42501') {
+        userMessage = 'Permission denied: You may not have access to this household';
+      } else if (dbError?.message) {
+        userMessage = `Failed to save: ${dbError.message}`;
+      }
+      
+      toast.error(userMessage);
     } finally {
       setIsSaving(false);
     }
@@ -217,22 +237,31 @@ export default function DietaryPreferencesPage() {
         servingCount: formData.servingCount.value,
       };
 
-      const suggestions = await getDietarySuggestions(plainFormData);
+      const response = await postDietaryPreferences(plainFormData);
+      const suggestions = response.items || [];
       setSuggestions(suggestions);
       setShowSuggestions(true);
     } catch (error) {
-      logger.error('Error generating grocery list:', error);
+      // Enhanced error logging
+      const apiError = error as { message?: string; details?: string };
+      logger.error({
+        errorMessage: apiError?.message || 'Unknown error',
+        errorDetails: apiError?.details || 'No details available',
+        errorString: String(error),
+        errorJSON: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        plainFormData: {
+          dietaryGoal: formData.dietaryGoal.value,
+          favoriteFood: formData.favoriteFood.value,
+          cookingTime: formData.cookingTime.value,
+          servingCount: formData.servingCount.value,
+        },
+        timestamp: new Date().toISOString()
+      }, 'Error generating grocery list - Complete diagnostic');
+      
       toast.error('Failed to generate grocery list. Please try again.');
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const plainFormData = {
-    dietaryGoal: formData.dietaryGoal.value,
-    favoriteFood: formData.favoriteFood.value,
-    cookingTime: formData.cookingTime.value,
-    servingCount: formData.servingCount.value,
   };
 
   return (
@@ -312,7 +341,6 @@ export default function DietaryPreferencesPage() {
         isOpen={showSuggestions}
         onClose={() => setShowSuggestions(false)}
         suggestions={suggestions}
-        dietaryPreferences={plainFormData}
       />
     </div>
   );

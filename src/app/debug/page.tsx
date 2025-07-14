@@ -182,20 +182,20 @@ export default function DebugPage() {
               
               {result.status === 'error' && (
                 <div className="space-y-2">
-                  <p className="text-red-600 font-medium">Error: {result.error.message}</p>
-                  {result.error.details && (
+                  <p className="text-red-600 font-medium">Error: {result.error?.message}</p>
+                  {result.error?.details && (
                     <p className="text-sm text-gray-600">Details: {result.error.details}</p>
                   )}
-                  {result.error.hint && (
+                  {result.error?.hint && (
                     <p className="text-sm text-gray-600">Hint: {result.error.hint}</p>
                   )}
-                  {result.error.code && (
+                  {result.error?.code && (
                     <p className="text-sm text-gray-600">Code: {result.error.code}</p>
                   )}
                   <details className="text-xs">
                     <summary className="cursor-pointer text-gray-500">Full Error</summary>
                     <pre className="bg-gray-100 p-2 rounded mt-1 overflow-auto">
-                      {result.error.full}
+                      {result.error?.full}
                     </pre>
                   </details>
                 </div>

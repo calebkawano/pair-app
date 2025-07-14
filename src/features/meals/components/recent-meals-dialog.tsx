@@ -2,11 +2,11 @@
 
 import { Button } from "@/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "@/ui/dialog";
 import { Star, Utensils } from "lucide-react";
 import { useState } from "react";
@@ -140,7 +140,15 @@ export function RecentMealsDialog({
             dietaryTags: selectedMeal.dietary_tags,
             ingredients: selectedMeal.ingredients,
             steps: selectedMeal.steps,
-            nutrition: selectedMeal.nutrition,
+            // TODO: Update MealDialog to handle null nutrition gracefully
+            // For now, provide fallback zeros to prevent crashes
+            nutrition: selectedMeal.nutrition || {
+              calories: 0,
+              protein: 0,
+              carbs: 0,
+              fat: 0,
+              fiber: 0
+            },
             imageUrl: '' // We don't store images yet
           }}
           isOpen={!!selectedMealId}

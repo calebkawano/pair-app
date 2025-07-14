@@ -8,12 +8,36 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface JoinHouseholdPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function JoinHouseholdPage({ params }: JoinHouseholdPageProps) {
+  const [inviteId, setInviteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    params.then(({ id }) => {
+      setInviteId(id);
+    });
+  }, [params]);
+
+  if (!inviteId) {
+    return (
+      <div className="container max-w-md mx-auto p-4">
+        <Card className="p-6">
+          <div className="flex items-center justify-center">
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+  
+  return <JoinHouseholdClient inviteId={inviteId} />;
+}
+
+function JoinHouseholdClient({ inviteId }: { inviteId: string }) {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [household, setHousehold] = useState<{ id: string; name: string; } | null>(null);
@@ -35,7 +59,7 @@ export default function JoinHouseholdPage({ params }: JoinHouseholdPageProps) {
       const { data: memberData } = await supabase
         .from('household_members')
         .select('household_id')
-        .eq('household_id', params.id)
+        .eq('household_id', inviteId)
         .eq('user_id', user.id)
         .single();
 
@@ -48,7 +72,7 @@ export default function JoinHouseholdPage({ params }: JoinHouseholdPageProps) {
       const { data: householdData, error: householdError } = await supabase
         .from('households')
         .select('id, name')
-        .eq('id', params.id)
+        .eq('id', inviteId)
         .single();
 
       if (householdError || !householdData) {
@@ -63,7 +87,7 @@ export default function JoinHouseholdPage({ params }: JoinHouseholdPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [params.id, supabase]);
+  }, [inviteId, supabase]);
 
   useEffect(() => {
     checkHousehold();

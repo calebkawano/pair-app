@@ -142,7 +142,7 @@ export function FoodRequestList({ householdId, isAdmin }: FoodRequestListProps) 
             message: error.message,
             stack: error.stack,
             // Try to access potential Supabase-specific properties
-            ...(error as Record<string, unknown>)
+            ...(error as unknown as Record<string, unknown>)
           });
         }
 

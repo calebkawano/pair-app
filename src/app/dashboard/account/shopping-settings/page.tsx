@@ -2,9 +2,9 @@
 
 import { FlexInput, FlexValue } from "@/components/FlexInput";
 import {
-    type ShoppingFormData,
-    type ShoppingRecommendations,
-    shoppingRecommendationsSchema
+  type ShoppingFormData,
+  type ShoppingRecommendations,
+  shoppingRecommendationsSchema
 } from '@/dto/shoppingSettings.schema';
 import { postShoppingSuggestions } from '@/lib/api/shopping';
 import { saveShoppingPreferences } from '@/lib/client/saveShoppingPreferences';
@@ -162,9 +162,41 @@ export default function ShoppingSettingsPage() {
       
       toast.success('Shopping settings saved successfully!');
       
-    } catch (error) {
-      logger.error('Error saving shopping settings:', error);
-      toast.error('Failed to save shopping settings. Please try again.');
+    } catch (error: unknown) {
+      // Enhanced error logging with complete error serialization
+      const apiError = error as { message?: string; details?: string; hint?: string; code?: string; status?: number };
+      logger.error({
+        errorMessage: apiError?.message || 'Unknown error',
+        errorDetails: apiError?.details || 'No details available',
+        errorHint: apiError?.hint || 'No hint available',
+        errorCode: apiError?.code || 'No code available',
+        errorStatus: apiError?.status || 'No status available',
+        errorString: String(error),
+        errorJSON: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        plainForm: {
+          budget: formData.budget.value,
+          shoppingFrequency: formData.shoppingFrequency.value,
+          favoriteStores: formData.favoriteStores.value,
+          avoidStores: formData.avoidStores.value,
+        },
+        userId,
+        timestamp: new Date().toISOString()
+      }, 'Error saving shopping settings - Complete diagnostic');
+      
+      let userMessage = 'Failed to save shopping settings';
+      if (apiError?.status === 401) {
+        userMessage = 'Authentication error: Please log in again';
+      } else if (apiError?.status === 403) {
+        userMessage = 'Permission denied: You may not have access to this feature';
+      } else if (apiError?.status === 429) {
+        userMessage = 'Too many requests: Please wait a moment and try again';
+      } else if (apiError?.status && apiError.status >= 500) {
+        userMessage = 'Server error: Please try again later';
+      } else if (apiError?.message) {
+        userMessage = `Failed to save: ${apiError.message}`;
+      }
+      
+      toast.error(userMessage);
       // Restore previous recommendations on error
       if (previousRecommendations) {
         setRecommendations(previousRecommendations);
@@ -243,7 +275,7 @@ export default function ShoppingSettingsPage() {
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Generating Recommendations...' : 'Save &amp; Get Recommendations'}
+                  {isLoading ? 'Generating Recommendations...' : 'Save & Get Recommendations'}
                 </Button>
               </div>
             </form>

@@ -41,7 +41,7 @@ export interface UserPreferences {
   servingCount: string;
 }
 
-export type StoreSection = 'Produce' | 'Meat & Seafood' | 'Dairy & Eggs' | 'Bakery' | 'Pantry' | 'Frozen' | 'Beverages' | 'Household' | 'Other';
+export type StoreSection = 'Produce' | 'Meat' | 'Seafood' | 'Dairy & Eggs' | 'Bakery' | 'Pantry' | 'Frozen' | 'Beverages' | 'Household' | 'Other';
 
 export const UNITS = [
   'pcs',

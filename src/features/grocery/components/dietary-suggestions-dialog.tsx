@@ -82,7 +82,8 @@ export function DietarySuggestionsDialog({
       // Allowed store sections as per food_requests constraint
       const ALLOWED_SECTIONS = [
         'Produce',
-        'Meat & Seafood',
+        'Meat',
+        'Seafood',
         'Dairy & Eggs',
         'Bakery',
         'Pantry',
