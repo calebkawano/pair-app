@@ -15,31 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Check, ChevronDown, ChevronUp, Edit2, Plus, Save, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import type { GroceryItem } from "@/types/grocery";
 
-interface GroceryItem {
-  id: string;
-  name: string;
-  category: string;
-  item_name: string;
-  item_description: string | null;
-  quantity: number;
-  unit: string | null;
-  priority: 'urgent' | 'normal';
-  section?: string | null;
-  household: {
-    name: string;
-    color?: string;
-  };
-  requester: {
-    full_name: string;
-  };
-  approver: {
-    full_name: string;
-  } | null;
-  is_purchased?: boolean;
-  is_accepted?: boolean;
-  status: 'pending' | 'approved' | 'declined';
-}
+
 
 // Type for AI suggestions from localStorage
 interface AISuggestion {
@@ -365,7 +343,7 @@ export default function GroceryListPage() {
       setEditingData(prev => ({
         ...prev,
         [itemId]: {
-          item_name: item.item_name,
+          item_name: (item.item_name ?? item.name ?? ""),
           item_description: item.item_description,
           quantity: item.quantity,
           unit: item.unit,
@@ -785,7 +763,7 @@ export default function GroceryListPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'accept')}
+                          onClick={() => handleItemPreference(item.id, (item.item_name ?? item.name ?? ""), item.section || null, 'accept')}
                           className="text-green-600 hover:text-green-700 hover:bg-green-50"
                         >
                           <Check className="h-4 w-4" />
@@ -793,7 +771,7 @@ export default function GroceryListPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleItemPreference(item.id, item.item_name, item.section || null, 'reject')}
+                          onClick={() => handleItemPreference(item.id, (item.item_name ?? item.name ?? ""), item.section || null, 'reject')}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <X className="h-4 w-4" />

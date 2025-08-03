@@ -56,7 +56,7 @@ class GroceryStoreService {
     await this.ensureDataLoaded();
     const lowercaseQuery = query.toLowerCase();
     return this.data.filter(item => 
-      item.name.toLowerCase().includes(lowercaseQuery) ||
+      (item.name ?? item.item_name ?? "").toLowerCase().includes(lowercaseQuery) ||
       item.tags?.some(tag => tag.toLowerCase().includes(lowercaseQuery))
     );
   }

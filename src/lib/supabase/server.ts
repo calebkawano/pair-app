@@ -3,13 +3,36 @@ import { Database } from '@/types/database'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Re-exported custom error class so existing imports keep working
+export class SupabaseError extends Error {
+  constructor(
+    message: string,
+    public readonly code?: string,
+    public readonly details?: unknown
+  ) {
+    super(message);
+    this.name = 'SupabaseError';
+  }
+}
+
 // Factory that returns a new server client bound to the current request cookie store
 export const supabaseServer = async () => {
   const cookieStore = await cookies()
 
+  if (!supabaseUrl) {
+    throw new SupabaseError('Supabase URL is not defined');
+  }
+
+  if (!supabaseKey) {
+    throw new SupabaseError('Supabase anonymous key is not defined');
+  }
+
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         get(name: string) {
@@ -28,16 +51,4 @@ export const supabaseServer = async () => {
 }
 
 // Back-compat: many modules still call `createClient()`
-export const createClient = supabaseServer
-
-// Re-exported custom error class so existing imports keep working
-export class SupabaseError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly details?: unknown
-  ) {
-    super(message)
-    this.name = 'SupabaseError'
-  }
-} 
+export const createClient = supabaseServer 

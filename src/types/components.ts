@@ -1,4 +1,5 @@
 import { GroceryItem } from './grocery';
+export type { GroceryItem };
 
 export interface GroceryListProps {
   items: GroceryItem[];

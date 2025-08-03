@@ -2,6 +2,18 @@ import { logger } from '@/lib/logger';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Define public routes that don't require authentication
+const PUBLIC_ROUTES = [
+  '/',
+  '/learn',
+  '/auth/callback',
+  '/login',
+  '/signup'
+];
+
 /**
  * Edge middleware that authenticates every request hitting /api/* routes.
  * If a user session is not found, the request is terminated with 401.
@@ -20,8 +32,8 @@ export async function middleware(req: NextRequest) {
 
   // Initialise Supabase client bound to the middleware request/response
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl!,
+    supabaseKey!,
     {
       cookies: {
         get(name: string) {

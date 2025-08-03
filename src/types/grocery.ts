@@ -1,6 +1,7 @@
 export interface GroceryItem {
   id: string;
-  name: string;
+  name?: string;
+  item_name?: string;
   category: string;
   quantity: number;
   unit: string | null;
@@ -9,11 +10,11 @@ export interface GroceryItem {
   tags?: string[];
   priority?: 'urgent' | 'normal';
   section?: string | null;
-  household?: {
+  household: {
     name: string;
     color?: string;
   };
-  requester?: {
+  requester: {
     full_name: string;
   };
   approver?: {
