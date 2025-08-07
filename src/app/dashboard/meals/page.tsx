@@ -82,7 +82,6 @@ export default function MealsPage() {
   const [isGeneratingGroceries, setIsGeneratingGroceries] = useState(false);
   const [viewedRandomMeals, setViewedRandomMeals] = useState<Set<string>>(new Set());
   const [visibleMeals, setVisibleMeals] = useState(10);
-  const [hasMoreMeals, setHasMoreMeals] = useState(true);
   const supabase = createClient();
 
   const loadRecentMeals = useCallback(async () => {

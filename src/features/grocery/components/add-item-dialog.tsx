@@ -24,7 +24,8 @@ import {
 } from "@/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Textarea } from "@/ui/textarea";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Check as CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 // Available units for dropdown - matching the main grocery page
@@ -81,6 +82,20 @@ export function AddItemDialog({
   const [suggestions, setSuggestions] = useState<SuggestedItem[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [addingItemIndex, setAddingItemIndex] = useState<number | null>(null);
+  const [addedIndices, setAddedIndices] = useState<Set<number>>(new Set());
+  const [usdaQuery, setUsdaQuery] = useState('');
+  const [usdaResults, setUsdaResults] = useState<Array<{
+    id: string;
+    name: string;
+    category?: string;
+    nutrients?: Array<{ nutrientName: string; amount: number; unit: string }>;
+    isVegan?: boolean;
+    isGlutenFree?: boolean;
+    season?: string | null;
+    brandOwner?: string | null;
+  }>>([]);
+  const [usdaLoading, setUsdaLoading] = useState(false);
+  const usdaAbortRef = useRef<AbortController | null>(null);
 
   // Household lookup is now handled by useActiveHousehold(); no additional effect required.
 
@@ -406,6 +421,7 @@ export function AddItemDialog({
       }
 
       toast.success(`${item.name} added to your list`);
+      setAddedIndices(prev => new Set(prev).add(itemIndex));
       // Refresh the parent page list
       onItemAdded();
     } catch (error: unknown) {
@@ -462,6 +478,71 @@ export function AddItemDialog({
     return 'Other';
   };
 
+  // Nutrient summary from USDA item
+  const buildNutrientSummary = (nutrients?: Array<{ nutrientName: string; amount: number; unit: string }>) => {
+    if (!nutrients || nutrients.length === 0) return '';
+    const top = nutrients.slice(0, 4).map(n => `${n.nutrientName}: ${n.amount}${n.unit}`).join('; ');
+    return `Highlights — ${top}`;
+  };
+
+  // Debounced USDA search
+  useEffect(() => {
+    const q = usdaQuery.trim();
+    if (q.length < 2) {
+      setUsdaResults([]);
+      if (usdaAbortRef.current) usdaAbortRef.current.abort();
+      return;
+    }
+    const ac = new AbortController();
+    usdaAbortRef.current = ac;
+    const t = setTimeout(async () => {
+      try {
+        setUsdaLoading(true);
+        const res = await fetch(`/api/usda-search?q=${encodeURIComponent(q)}&limit=12`, { signal: ac.signal });
+        if (!res.ok) throw new Error('USDA search failed');
+        const data = await res.json();
+        setUsdaResults(data.items || []);
+      } catch {
+        if (!ac.signal.aborted) setUsdaResults([]);
+      } finally {
+        setUsdaLoading(false);
+      }
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [usdaQuery]);
+
+  const onPickUsdaItem = (it: {
+    id: string;
+    name: string;
+    category?: string;
+    nutrients?: Array<{ nutrientName: string; amount: number; unit: string }>;
+    isVegan?: boolean;
+    isGlutenFree?: boolean;
+    season?: string | null;
+    brandOwner?: string | null;
+  }) => {
+    const section = normaliseCategory(it.category || '');
+    const notesParts = [buildNutrientSummary(it.nutrients)];
+    if (it.isVegan) notesParts.push('Vegan');
+    if (it.isGlutenFree) notesParts.push('Gluten-free');
+    if (it.season) notesParts.push(`Season: ${it.season}`);
+    if (it.brandOwner) notesParts.push(`Brand: ${it.brandOwner}`);
+    const notes = notesParts.filter(Boolean).join(' • ');
+
+    setFormData((prev) => ({
+      ...prev,
+      name: it.name,
+      section,
+      notes: notes || prev.notes,
+      quantity: prev.quantity || '1',
+    }));
+    // Clear suggestions dropdown
+    setUsdaResults([]);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
@@ -481,12 +562,70 @@ export function AddItemDialog({
           <TabsContent value="manual" className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Item Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Milk"
-              />
+              <div className="relative">
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setFormData(prev => ({ ...prev, name: v }));
+                    setUsdaQuery(v);
+                  }}
+                  placeholder="e.g., Milk"
+                  autoComplete="off"
+                />
+                {/* USDA Suggestions Dropdown */}
+                {formData.name.trim().length >= 1 && (
+                  <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-72 overflow-auto">
+                    {/* Best match manual option (exact typed text) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, name: prev.name }));
+                        setUsdaResults([]);
+                      }}
+                      className="w-full text-left px-3 py-3 hover:bg-accent border-b"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="font-medium truncate">{formData.name}</div>
+                          <div className="text-xs text-muted-foreground">Manual entry</div>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">Add</div>
+                      </div>
+                    </button>
+
+                    {/* USDA results (if any) */}
+                    {usdaResults.map((it) => (
+                      <button
+                        type="button"
+                        key={it.id}
+                        onClick={() => onPickUsdaItem(it)}
+                        className="w-full text-left px-3 py-2 hover:bg-accent"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="font-medium truncate">{it.name}</div>
+                            <div className="text-xs text-muted-foreground">{it.category || 'Other'}{it.brandOwner ? ` • ${it.brandOwner}` : ''}</div>
+                          </div>
+                          <div className="text-right text-xs text-muted-foreground">
+                            {it.isVegan && <span className="mr-2">Vegan</span>}
+                            {it.isGlutenFree && <span>GF</span>}
+                          </div>
+                        </div>
+                        {it.nutrients && it.nutrients.length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-1 truncate">
+                            {buildNutrientSummary(it.nutrients)}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                    {usdaLoading && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -620,30 +759,38 @@ export function AddItemDialog({
             </Button>
 
             {suggestions.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <h3 className="font-medium">Suggested Items</h3>
-                <div className="grid gap-2">
-                  {suggestions.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-2 border rounded-lg hover:bg-accent"
-                    >
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {item.quantity} {item.unit} • {item.section}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addSuggestedItem(item, index)}
-                        disabled={addingItemIndex === index}
+                <div className="border rounded-lg max-h-72 overflow-auto p-2 bg-muted/20">
+                  <div className="grid gap-2">
+                    {suggestions.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 border rounded-lg bg-background hover:bg-accent"
                       >
-                        {addingItemIndex === index ? 'Adding...' : 'Add to List'}
-                      </Button>
-                    </div>
-                  ))}
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.quantity} {item.unit} • {item.section}
+                          </p>
+                        </div>
+                        {addedIndices.has(index) ? (
+                          <Button variant="outline" size="sm" disabled className="gap-1">
+                            <CheckIcon className="h-4 w-4" /> Added
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addSuggestedItem(item, index)}
+                            disabled={addingItemIndex === index}
+                          >
+                            {addingItemIndex === index ? 'Adding…' : 'Add'}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

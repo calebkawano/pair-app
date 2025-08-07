@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, PanInfo, useMotionValue, useTransform, AnimatePresence } from "framer-motion";
+import { motion, PanInfo, useMotionValue, AnimatePresence } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
