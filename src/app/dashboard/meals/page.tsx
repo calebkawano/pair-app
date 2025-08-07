@@ -81,6 +81,8 @@ export default function MealsPage() {
   const [isGeneratingRandom, setIsGeneratingRandom] = useState(false);
   const [isGeneratingGroceries, setIsGeneratingGroceries] = useState(false);
   const [viewedRandomMeals, setViewedRandomMeals] = useState<Set<string>>(new Set());
+  const [visibleMeals, setVisibleMeals] = useState(10);
+  const [hasMoreMeals, setHasMoreMeals] = useState(true);
   const supabase = createClient();
 
   const loadRecentMeals = useCallback(async () => {
@@ -379,7 +381,7 @@ export default function MealsPage() {
         <TabsContent value="previous" className="mt-6">
           {recentMeals.length > 0 ? (
             <div className="space-y-4">
-              {recentMeals.map((meal) => (
+              {recentMeals.slice(0, visibleMeals).map((meal) => (
                 <div
                   key={meal.id}
                   className="flex items-center justify-between p-4 rounded-lg border"
@@ -411,6 +413,30 @@ export default function MealsPage() {
                   </button>
                 </div>
               ))}
+              <div className="relative mt-4">
+                <div className="flex justify-center">
+                  {recentMeals.length > visibleMeals && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleMeals(prev => prev + 10)}
+                      className="w-full max-w-xs"
+                    >
+                      Load More Meals
+                    </Button>
+                  )}
+                </div>
+                {visibleMeals > 10 && (
+                  <div className="absolute right-0 top-0">
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleMeals(prev => Math.max(10, prev - 10))}
+                      size="sm"
+                    >
+                      Show Less
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
@@ -423,6 +449,7 @@ export default function MealsPage() {
             <div className="space-y-4">
               {recentMeals
                 .filter((meal) => favoriteMeals.includes(meal.id))
+                .slice(0, visibleMeals)
                 .map((meal) => (
                   <div
                     key={meal.id}
@@ -449,6 +476,30 @@ export default function MealsPage() {
                     </button>
                   </div>
                 ))}
+              <div className="relative mt-4">
+                <div className="flex justify-center">
+                  {recentMeals.filter((meal) => favoriteMeals.includes(meal.id)).length > visibleMeals && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleMeals(prev => prev + 10)}
+                      className="w-full max-w-xs"
+                    >
+                      Load More Favorites
+                    </Button>
+                  )}
+                </div>
+                {visibleMeals > 10 && (
+                  <div className="absolute right-0 top-0">
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleMeals(prev => Math.max(10, prev - 10))}
+                      size="sm"
+                    >
+                      Show Less
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">

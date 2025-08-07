@@ -1,16 +1,29 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+  // if "next" is in param, use it as the redirect URL
+  const next = searchParams.get('next') ?? '/dashboard/meals'
 
   if (code) {
-    const supabase = createRouteHandlerClient({ cookies: () => cookies() })
-    await supabase.auth.exchangeCodeForSession(code)
+    const cookieStore = cookies()
+    const supabase = await createClient()
+    
+    // Exchange the code for a session
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (!error) {
+      // Successful login - redirect to the next page
+      return NextResponse.redirect(`${origin}${next}`)
+    }
+
+    console.error('Auth callback error:', error)
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(new URL('/dashboard', request.url))
-} 
+  // Return the user to an error page with instructions
+  return NextResponse.redirect(`${origin}/login?error=No_code_provided`)
+}

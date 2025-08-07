@@ -1,8 +1,9 @@
 'use client';
 
+import { SwipeCarousel } from "@/components/SwipeCarousel";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/button";
-import { Home, ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { Settings, ShoppingCart, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -13,14 +14,14 @@ const navigation = [
     icon: ShoppingCart
   },
   {
-    name: 'Home',
-    href: '/dashboard',
-    icon: Home
-  },
-  {
     name: 'Meals',
     href: '/dashboard/meals',
     icon: UtensilsCrossed
+  },
+  {
+    name: 'Profile',
+    href: '/dashboard',
+    icon: Settings
   }
 ];
 
@@ -35,7 +36,9 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-background">
       {/* Main Content */}
       <div className="flex-1 pb-20">
-        {children}
+        <SwipeCarousel>
+          {children}
+        </SwipeCarousel>
       </div>
 
       {/* Bottom Navigation Bar */}
