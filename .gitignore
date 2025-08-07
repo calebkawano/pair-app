@@ -42,3 +42,6 @@ next-env.d.ts
 node_modules/
 .DS_Store
 .env
+
+# USDA data (regenerate with npm run import-usda)
+public/data/grocery_usda.json
