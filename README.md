@@ -29,6 +29,45 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## USDA Data Import
+
+The application includes a script to import food data from the USDA FoodData Central database. This data is used to enhance our grocery item database with detailed nutritional information.
+
+### Prerequisites
+
+1. Get a USDA FoodData Central API key from [https://fdc.nal.usda.gov/api-key-signup.html](https://fdc.nal.usda.gov/api-key-signup.html)
+2. Add your API key to the environment:
+   ```bash
+   echo "FDC_API_KEY=your_api_key_here" >> .env
+   ```
+
+### Running the Import
+
+To import USDA data:
+
+```bash
+# Install dependencies if you haven't already
+npm install
+
+# Run the import script
+node scripts/import-usda.js
+```
+
+The script will:
+1. Fetch all available foods from the USDA database
+2. Transform them to match our schema
+3. Validate the data against our schema
+4. Save to `public/data/grocery_data.json`
+5. Print a summary of imported items
+
+### Running Tests
+
+To validate the imported data:
+
+```bash
+npm test tests/importer.test.js
+```
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

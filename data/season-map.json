@@ -1,0 +1,7 @@
+[
+  { "match": ["strawberry", "berries"], "season": "summer" },
+  { "match": ["pumpkin", "winter squash"], "season": "fall" },
+  { "match": ["citrus", "orange", "lemon"], "season": "winter" },
+  { "match": ["asparagus"], "season": "spring" }
+]
+

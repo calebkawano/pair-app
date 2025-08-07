@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1001",
+    "name": "Apple, raw",
+    "category": "Fruits",
+    "price": 1.0,
+    "season": "fall",
+    "nutrients": [
+      { "nutrientName": "Energy", "amount": 52, "unit": "kcal" },
+      { "nutrientName": "Carbohydrate, by difference", "amount": 13.81, "unit": "g" }
+    ],
+    "isVegan": true,
+    "isGlutenFree": true,
+    "fdcId": "1001",
+    "servingSize": { "amount": 100, "unit": "g" },
+    "brandOwner": null,
+    "ingredients": null,
+    "dataSource": "USDA_FDC"
+  },
+  {
+    "id": "2002",
+    "name": "Bread, wheat",
+    "category": "Breads",
+    "price": 1.0,
+    "season": null,
+    "nutrients": [
+      { "nutrientName": "Protein", "amount": 8.0, "unit": "g" }
+    ],
+    "isVegan": true,
+    "isGlutenFree": false,
+    "fdcId": "2002",
+    "servingSize": { "amount": 50, "unit": "g" },
+    "brandOwner": null,
+    "ingredients": "wheat flour, water, salt",
+    "dataSource": "USDA_FDC"
+  }
+]
+

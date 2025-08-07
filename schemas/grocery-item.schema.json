@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GroceryItem",
+  "description": "Schema for grocery items with USDA FoodData Central integration",
+  "type": "object",
+  "required": ["id", "name", "category"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (USDA FDC ID)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Food item name/description"
+    },
+    "category": {
+      "type": "string",
+      "description": "Food category from USDA classification"
+    },
+    "price": {
+      "type": "number",
+      "description": "Default price (1.00 if no market data)",
+      "default": 1.00,
+      "minimum": 0
+    },
+    "season": {
+      "type": ["string", "null"],
+      "description": "Primary growing/availability season",
+      "enum": ["spring", "summer", "fall", "winter", null]
+    },
+    "nutrients": {
+      "type": "array",
+      "description": "Nutritional information from USDA",
+      "items": {
+        "type": "object",
+        "required": ["nutrientName", "amount", "unit"],
+        "properties": {
+          "nutrientName": {
+            "type": "string",
+            "description": "Name of the nutrient"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount of nutrient per 100g serving"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit of measurement"
+          }
+        }
+      }
+    },
+    "isVegan": {
+      "type": "boolean",
+      "description": "Whether the item is vegan-friendly"
+    },
+    "isGlutenFree": {
+      "type": "boolean",
+      "description": "Whether the item is gluten-free"
+    },
+    "fdcId": {
+      "type": "string",
+      "description": "Original FoodData Central ID"
+    },
+    "servingSize": {
+      "type": "object",
+      "description": "Standard serving size information",
+      "properties": {
+        "amount": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        }
+      }
+    },
+    "brandOwner": {
+      "type": ["string", "null"],
+      "description": "Brand owner if applicable"
+    },
+    "ingredients": {
+      "type": ["string", "null"],
+      "description": "List of ingredients if applicable"
+    },
+    "dataSource": {
+      "type": "string",
+      "description": "Source of the food data",
+      "default": "USDA_FDC"
+    }
+  }
+}

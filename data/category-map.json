@@ -1,0 +1,13 @@
+[
+  { "match": ["vegetable", "greens", "leaf"], "to": "Produce" },
+  { "match": ["fruit", "berries", "citrus"], "to": "Produce" },
+  { "match": ["meat", "beef", "pork", "chicken", "turkey"], "to": "Meat" },
+  { "match": ["fish", "seafood", "salmon", "shrimp", "tuna"], "to": "Seafood" },
+  { "match": ["milk", "cheese", "yogurt", "butter", "dairy"], "to": "Dairy & Eggs" },
+  { "match": ["egg"], "to": "Dairy & Eggs" },
+  { "match": ["bread", "pasta", "grain", "rice", "oat", "flour"], "to": "Bakery" },
+  { "match": ["oil", "sauce", "spice", "seasoning", "salt", "sugar"], "to": "Pantry" },
+  { "match": ["frozen"], "to": "Frozen" },
+  { "match": ["juice", "soda", "drink", "beverage", "water", "coffee", "tea"], "to": "Beverages" }
+]
+
