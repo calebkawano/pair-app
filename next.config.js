@@ -14,6 +14,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'spoonacular.com',
+      },
     ],
   },
   // Allow access from local network during development

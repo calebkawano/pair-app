@@ -1,5 +1,27 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Spoonacular Setup
+
+Environment variable name for Spoonacular:
+
+- Add to your `.env.local` (do not commit):
+
+```
+SPOONACULAR_API_KEY=your_key_here
+```
+
+Client location:
+
+- `src/lib/recipes/spoonacular.ts` provides `searchRecipes` and `getRecipeById`.
+
+Supabase meals table:
+
+- Migration created at `src/lib/supabase/migrations/20250811_create_meals.sql`.
+
+Importer script:
+
+- `scripts/import-spoonacular-meals.ts` (run with `npx tsx scripts/import-spoonacular-meals.ts`).
+
 ## Getting Started
 
 First, run the development server:

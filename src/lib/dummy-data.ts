@@ -7,7 +7,7 @@ export interface DietaryTag {
 export interface Meal {
   id: string;
   name: string;
-  category: 'high-protein' | 'vegetarian' | 'vegan' | 'snack' | 'treat' | 'random';
+  category: 'high-protein' | 'vegetarian' | 'vegan' | 'keto' | 'snack' | 'treat' | 'random';
   cookingTime: string;
   rating: number;
   dietaryTags: string[]; // References to dietary tags
