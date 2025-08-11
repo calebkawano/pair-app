@@ -848,7 +848,12 @@ export default function GroceryListPage() {
         onItemAdded={() => loadGroceryList()}
       />
 
-      <RecentGroceriesDialog isOpen={showRecentDialog} onClose={() => setShowRecentDialog(false)} items={recentItems} />
+      <RecentGroceriesDialog 
+        isOpen={showRecentDialog} 
+        onClose={() => setShowRecentDialog(false)} 
+        items={recentItems}
+        onReAdd={() => loadGroceryList()}
+      />
     </div>
   );
 } 
