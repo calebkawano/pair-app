@@ -20,9 +20,24 @@ const nextConfig = {
       },
     ],
   },
-  // Allow access from local network during development
-  allowedDevOrigins: ['192.168.1.6', 'localhost', '127.0.0.1'],
-  
+  // Configure development server
+  async rewrites() {
+    return process.env.NODE_ENV === 'development'
+      ? [
+          {
+            source: '/:path*',
+            destination: '/:path*',
+            has: [
+              {
+                type: 'host',
+                value: '(192\\.168\\.1\\.6|localhost|127\\.0\\.0\\.1)(:\\d+)?',
+              },
+            ],
+          },
+        ]
+      : [];
+  },
+
   // Disable source maps for production
   productionBrowserSourceMaps: false,
 

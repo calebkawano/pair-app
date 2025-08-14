@@ -27,8 +27,9 @@ export async function GET(req: NextRequest) {
 
     const nextCursor = data && data.length > 0 ? data[data.length - 1].created_at : null
     return Response.json({ items: data || [], nextCursor })
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error?.message || 'Failed to fetch meals' }), { status: 500 })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch meals'
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500 })
   }
 }
 

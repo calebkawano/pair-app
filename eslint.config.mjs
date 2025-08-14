@@ -14,6 +14,12 @@ const eslintConfig = [
   {
     rules: {
       "react/no-unescaped-entities": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+      "react/prop-types": "off",
+      "react/react-in-jsx-scope": "off",
+      "no-console": ["warn", { "allow": ["warn", "error"] }]
     },
   },
 ];

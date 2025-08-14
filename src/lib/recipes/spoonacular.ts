@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Meal } from '@/lib/dummy-data'
+import type { Meal } from '@/lib/meals/types'
 
 const SPOONACULAR_API_BASE = 'https://api.spoonacular.com'
 
@@ -62,7 +62,8 @@ function mapDietOrCuisineToCategory(diets: string[] = [], cuisine?: string): Mea
   if (lowerDiets.includes('vegan')) return 'vegan'
   if (lowerDiets.includes('vegetarian')) return 'vegetarian'
   if (lowerDiets.includes('ketogenic')) return 'keto'
-  if (lowerDiets.includes('gluten free')) return 'random' // We don’t have a dedicated GF category in Meal union
+  if (lowerDiets.includes('gluten free')) return 'random'
+  // TODO: Add more diet types available in Meals
 
   const c = (cuisine || '').toLowerCase()
   if (['mexican', 'chinese', 'indian', 'italian', 'japanese', 'thai', 'greek', 'korean', 'french', 'middle eastern', 'bbq'].includes(c)) {
